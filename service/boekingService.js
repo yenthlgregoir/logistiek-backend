@@ -1,0 +1,304 @@
+import { Boeking } from "../models/boeking.js";
+import { Toestel } from "../models/toestel.js";
+import { ToestelType } from "../models/toestelType.js";
+import {Klant} from "../models/klant.js"
+import mongoose from "mongoose";
+
+export const getBoekingen = async (req, res) => {
+  try {
+    const boekingen = await Boeking.find()
+      .populate({
+        path: "toestel",
+        select: "naam Ref type",
+        populate: {
+          path: "type",
+          model: "ToestelType",
+          select: "naam",
+        },
+      })
+      .populate({
+        path: "klant",
+        select: "naam leverAdressen",
+      })
+      .populate({
+        path: "toestelType",
+        select: "naam",
+      })
+      .sort({ beginDatum: 1 }) // 👈 waarschijnlijk was dit ook fout (startDatum bestond niet)
+      .lean(); // 👈 BELANGRIJK (maakt gewone JS objecten)
+
+    // 🔎 Leveradres correct toevoegen
+    for (const boeking of boekingen) {
+      if (boeking.klant && boeking.leverAdres) {
+        const gevondenAdres = boeking.klant.leverAdressen?.find(
+          (adres) =>
+            adres._id.toString() === boeking.leverAdres.toString()
+        );
+
+        boeking.leverAdresDetails = gevondenAdres || null;
+      } else {
+        boeking.leverAdresDetails = null;
+      }
+    }
+
+    res.status(200).json(boekingen);
+  } catch (error) {
+    console.error("Fout bij ophalen boekingen:", error);
+    res.status(500).json({ message: "Fout bij ophalen boekingen" });
+  }
+};
+export const createBoeking = async (data) => {
+  const { beginDatum, eindDatum, toestelType, klant } = data;
+
+  const now = new Date();
+  const start = new Date(beginDatum);
+
+  if (start < now) {
+    throw new Error("De boeking moet in de toekomst liggen!");
+  }
+
+  // 1️⃣ TypeId valideren
+  const typeId = new mongoose.Types.ObjectId(toestelType);
+
+  // 2️⃣ Check of type bestaat
+  const typeExists = await ToestelType.findById(typeId);
+  if (!typeExists) {
+    throw new Error("ToestelType bestaat niet.");
+  }
+
+  // 3️⃣ Tel toestellen van dit type
+  const totaalAantal = await Toestel.countDocuments({ type: typeId });
+
+  if (totaalAantal === 0) {
+    throw new Error("Er bestaan geen toestellen van dit type.");
+  }
+
+  // 4️⃣ Zoek overlappende boekingen
+  const overlappendeBoekingen = await Boeking.find({
+    beginDatum: { $lte: new Date(eindDatum) },
+    eindDatum: { $gte: new Date(beginDatum) },
+    toestelType: typeId
+  });
+
+  const aantalBezet = overlappendeBoekingen.length;
+
+  if (aantalBezet >= totaalAantal) {
+    throw new Error("Geen toestellen van dit type beschikbaar in deze periode.");
+  }
+
+  // 5️⃣ Ref genereren
+  const laatsteBoeking = await Boeking.findOne().sort({ createdAt: -1 });
+  let nieuwNummer = 1;
+
+  if (laatsteBoeking?.ref) {
+    const laatsteNummer = parseInt(laatsteBoeking.ref.split("/")[0]);
+    nieuwNummer = laatsteNummer + 1;
+  }
+
+  const klantNaam = await Klant.findById(klant);
+  if (!klantNaam) {
+    throw new Error("Klant niet gevonden.");
+  }
+
+  const ref = `${nieuwNummer}/${typeExists.naam}/${klantNaam.naam}`;
+
+  // 6️⃣ Boeking opslaan — zonder toestel!
+  const nieuweBoeking = new Boeking({
+    ...data,
+    ref,
+    toestel: null
+  });
+
+  return await nieuweBoeking.save();
+};
+export const getBoekingById = async (id) => {
+  try {
+    const boeking = await Boeking.findById(id)
+      .populate({
+        path: "toestel",
+        select: "naam Ref type status nrplaat chasisnummer",
+        populate: {
+          path: "type",
+          model: "ToestelType",
+          select: "naam"
+        }
+      })
+      .populate({
+        path: "klant",
+        select: "naam leverAdressen"
+      })
+      .populate({
+        path: "toestelType",
+        select: "naam"
+      })
+      .lean();
+
+    if (!boeking) {
+      throw new Error("Boeking niet gevonden");
+    }
+
+    // 🔎 Juiste leveradres zoeken binnen klant.leverAdressen
+    if (boeking.klant && boeking.leverAdres) {
+      const gevondenAdres = boeking.klant.leverAdressen.find(
+        adres => adres._id.toString() === boeking.leverAdres.toString()
+      );
+
+      boeking.leverAdresDetails = gevondenAdres || null;
+    }
+
+    // Datum formatting
+    if (boeking.beginDatum) {
+      boeking.beginDatumFormatted =
+        new Date(boeking.beginDatum).toLocaleDateString("nl-BE");
+    }
+
+    if (boeking.eindDatum) {
+      boeking.eindDatumFormatted =
+        new Date(boeking.eindDatum).toLocaleDateString("nl-BE");
+    }
+
+    return boeking;
+
+  } catch (error) {
+    console.error("Fout bij ophalen boeking:", error);
+    throw error;
+  }
+};
+
+export const changeStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if (!status) {
+      return res.status(400).json({ message: "Status is verplicht." });
+    }
+
+    const boeking = await Boeking.findById(id);
+
+    if (!boeking) {
+      return res.status(404).json({ message: "Boeking niet gevonden." });
+    }
+
+    boeking.status = status;
+    boeking.updatedAt = new Date();
+
+    await boeking.save();
+
+    res.status(200).json({
+      message: "Status succesvol gewijzigd.",
+      boeking,
+    });
+  } catch (error) {
+    console.error("Fout bij wijzigen status:", error);
+
+    // Check voor Mongoose validation / pre-save error
+    if (error.message.includes("Toestel is vereist")) {
+      return res.status(400).json({ message: error.message });
+    }
+
+    if (error.message.includes("Einddatum moet later zijn dan begindatum")) {
+      return res.status(400).json({ message: error.message });
+    }
+
+    res.status(500).json({ message: "Fout bij wijzigen status." });
+  }
+};
+
+export const getVrijeToestellen = async (req, res) => {
+  try {
+    const { beginDatum, eindDatum, toestelType } = req.query;
+
+    if (!beginDatum || !eindDatum || !toestelType) {
+      return res.status(400).json({
+        message: "beginDatum, eindDatum en toestelType zijn verplicht.",
+      });
+    }
+
+    const start = new Date(beginDatum);
+    const eind = new Date(eindDatum);
+    const typeId = new mongoose.Types.ObjectId(toestelType);
+
+    // 1️⃣ Alle toestellen van dit type
+    const toestellen = await Toestel.find({ type: typeId }).lean();
+
+    if (!toestellen.length) {
+      return res.status(200).json([]);
+    }
+
+    // 2️⃣ Zoek overlappende boekingen in periode
+    const overlappendeBoekingen = await Boeking.find({
+      toestel: { $ne: null },
+      beginDatum: { $lte: eind },
+      eindDatum: { $gte: start },
+    }).select("toestel").lean();
+
+    // 3️⃣ Bezet toestel IDs
+    const bezetteToestelIds = overlappendeBoekingen.map(
+      (b) => b.toestel.toString()
+    );
+
+    // 4️⃣ Filter vrije toestellen
+    const vrijeToestellen = toestellen.filter(
+      (t) => !bezetteToestelIds.includes(t._id.toString())
+    );
+
+    res.status(200).json(vrijeToestellen);
+
+  } catch (error) {
+    console.error("Fout bij ophalen vrije toestellen:", error);
+    res.status(500).json({
+      message: "Fout bij ophalen vrije toestellen.",
+    });
+  }
+};
+export const assignToestel = async (req, res) => {
+  try {
+    const { id } = req.params; // boekingId
+    const { toestel: toestelId } = req.body;
+
+    if (!toestelId) {
+      return res.status(400).json({ message: "Toestel is verplicht." });
+    }
+
+    // 1️⃣ Boeking ophalen
+    const boeking = await Boeking.findById(id);
+    if (!boeking) {
+      return res.status(404).json({ message: "Boeking niet gevonden." });
+    }
+
+    // 2️⃣ Toestel ophalen
+    const toestel = await Toestel.findById(toestelId);
+    if (!toestel) {
+      return res.status(404).json({ message: "Toestel niet gevonden." });
+    }
+
+    // 3️⃣ Check dat toestel type overeenkomt met boekingstype
+    if (!boeking.toestelType.equals(toestel.type)) {
+      return res.status(400).json({ message: "Toestel type komt niet overeen." });
+    }
+
+    // 4️⃣ Check dat toestel vrij is in deze periode
+    const overlappendeBoekingen = await Boeking.find({
+      toestel: toestel._id,
+      _id: { $ne: boeking._id }, // andere boekingen
+      beginDatum: { $lte: boeking.eindDatum },
+      eindDatum: { $gte: boeking.beginDatum },
+    });
+
+    if (overlappendeBoekingen.length > 0) {
+      return res.status(400).json({ message: "Toestel is bezet in deze periode." });
+    }
+
+    // 5️⃣ Toewijzen
+    boeking.toestel = toestel._id;
+    boeking.updatedAt = new Date();
+    await boeking.save();
+
+    res.status(200).json({ message: "Toestel succesvol toegewezen.", boeking });
+
+  } catch (error) {
+    console.error("Fout bij toewijzen toestel:", error);
+    res.status(500).json({ message: "Fout bij toewijzen toestel." });
+  }
+};
