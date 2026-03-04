@@ -123,4 +123,7 @@ router.delete("/:id/leveradressen/:adresId", auth, async (req, res) => {
   }
 });
 
+router.patch('/:id/leveradres', klantenService.updateLeverAdres);
+
+
 export default router;

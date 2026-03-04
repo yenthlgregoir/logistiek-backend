@@ -302,3 +302,66 @@ export const assignToestel = async (req, res) => {
     res.status(500).json({ message: "Fout bij toewijzen toestel." });
   }
 };
+
+export const boekingVerwijderen = async (req ,res) => {
+   try {
+    const { id } = req.params;
+
+    const deletedBoeking = await Boeking.findByIdAndDelete(id);
+
+    if (!deletedBoeking) {
+      return res.status(404).json({ message: 'Boeking niet gevonden' });
+    }
+
+    res.status(200).json({ message: 'Boeking succesvol verwijderd', deletedBoeking });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Er is een fout opgetreden bij het verwijderen van de boeking' });
+  }
+}
+// PUT /boekingen/:id
+export const updateBoeking = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updates = req.body; // object met de te updaten velden
+
+    // 1️⃣ Boeking ophalen
+    const boeking = await Boeking.findById(id);
+    if (!boeking) {
+      return res.status(404).json({ message: "Boeking niet gevonden." });
+    }
+
+    // 2️⃣ Velden updaten
+    // Alleen specifieke velden updaten, bijvoorbeeld leverAdres, beginDatum, eindDatum
+    if (updates.leverAdres) boeking.leverAdres = updates.leverAdres;
+    if (updates.beginDatum) boeking.beginDatum = new Date(updates.beginDatum);
+    if (updates.eindDatum) boeking.eindDatum = new Date(updates.eindDatum);
+    if (updates.status) boeking.status = updates.status;
+    if (updates.klant) boeking.klant = updates.klant;
+    if (updates.toestelType) boeking.toestelType = updates.toestelType;
+
+    boeking.updatedAt = new Date();
+
+    // 3️⃣ Opslaan
+    const savedBoeking = await boeking.save();
+
+    // 4️⃣ Populatie indien nodig
+    const populatedBoeking = await Boeking.findById(savedBoeking._id)
+      .populate({ path: "klant", select: "naam leverAdressen" })
+      .populate({ path: "toestel", select: "naam Ref type" })
+      .lean();
+
+    // 5️⃣ Juiste leveradres toevoegen
+    if (populatedBoeking.klant && populatedBoeking.leverAdres) {
+      const gevondenAdres = populatedBoeking.klant.leverAdressen.find(
+        (adres) => adres._id.toString() === populatedBoeking.leverAdres.toString()
+      );
+      populatedBoeking.leverAdresDetails = gevondenAdres || null;
+    }
+
+    res.status(200).json({ message: "Boeking succesvol bijgewerkt.", boeking: populatedBoeking });
+  } catch (error) {
+    console.error("Fout bij bijwerken boeking:", error);
+    res.status(500).json({ message: "Fout bij bijwerken boeking." });
+  }
+};
