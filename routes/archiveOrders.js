@@ -6,7 +6,7 @@ const router = express.Router();
 import auth from "../middelware/auth.js";
 
 /** Zelfde list-endpoint als live, met filters/zoek/sort/paging */
-router.get("/", auth, async (req, res) => {
+router.get("/", auth("admin" , "purchase"), async (req, res) => {
   try {
     const {
       status,
@@ -65,7 +65,7 @@ router.get("/", auth, async (req, res) => {
   }
 });
 
-router.get("/:id",auth, async (req, res) => {
+router.get("/:id",auth("admin" , "purchase"), async (req, res) => {
   try {
     const item = await ArchiveOrder.findOne({ id: req.params.id }).lean();
     if (!item) return res.status(404).json({ message: "Niet gevonden" });
@@ -75,7 +75,7 @@ router.get("/:id",auth, async (req, res) => {
   }
 });
 
-router.post("/",auth, async (req, res) => {
+router.post("/",auth("admin" , "purchase"), async (req, res) => {
   try {
     const created = await ArchiveOrder.create(req.body);
     res.status(201).json(created);
@@ -87,7 +87,7 @@ router.post("/",auth, async (req, res) => {
   }
 });
 
-router.patch("/:id",auth, async (req, res) => {
+router.patch("/:id",auth("admin" , "purchase"), async (req, res) => {
   try {
     const updated = await ArchiveOrder.findOneAndUpdate(
       { id: req.params.id },
@@ -102,7 +102,7 @@ router.patch("/:id",auth, async (req, res) => {
   }
 });
 
-router.delete("/:id",auth, async (req, res) => {
+router.delete("/:id",auth("admin" , "purchase"), async (req, res) => {
   try {
     const result = await ArchiveOrder.deleteOne({ id: req.params.id });
     if (result.deletedCount === 0) {
@@ -115,7 +115,7 @@ router.delete("/:id",auth, async (req, res) => {
 });
 
 /** POST /archive-orders/:id/restore → verplaats terug naar live_orders */
-router.post("/:id/restore",auth, async (req, res) => {
+router.post("/:id/restore",auth("admin" , "purchase"), async (req, res) => {
   try {
     const doc = await ArchiveOrder.findOneAndDelete({ id: req.params.id }).lean();
     if (!doc) return res.status(404).json({ message: "Niet gevonden" });

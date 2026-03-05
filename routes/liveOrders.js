@@ -7,11 +7,11 @@ import PizZip from "pizzip";
 import Docxtemplater from "docxtemplater";
 import puppeteer from "puppeteer";
 import mammoth from "mammoth";
-const router = express.Router();
 import auth from "../middelware/auth.js";
+const router = express.Router();
 
 
-router.get("/",auth, async (req, res) => {
+router.get("/",auth("admin" , "purchase"), async (req, res) => {
   try {
     const {
       status,
@@ -106,10 +106,9 @@ router.get("/:id", async (req, res) => {
 
 
 /** POST /live-orders  (nieuw item) */
-router.post("/",auth, async (req, res) => {
+router.post("/",auth("admin" , "purchase"), async (req, res) => {
   try {
     const created = await LiveOrder.create(req.body);
-    console.log(created);
     res.status(201).json(created);
   } catch (err) {
     // Duplicate key (bv. id al in gebruik)
@@ -123,11 +122,9 @@ router.post("/",auth, async (req, res) => {
 });
 
 /** PATCH /live-orders/:id  (partiële update) */
-router.patch("/:id",auth, async (req, res) => {
+router.patch("/:id",auth("admin" , "purchase"), async (req, res) => {
   try {
-    console.log(req.params.id);
     const order = await LiveOrder.findById(req.params.id);
-    console.log(order);
 
     if (!order) {
       return res.status(404).json({ message: "Order niet gevonden" });
@@ -149,7 +146,7 @@ router.patch("/:id",auth, async (req, res) => {
 
 
 /** DELETE /live-orders/:id */
-router.delete("/:id",auth, async (req, res) => {
+router.delete("/:id",auth("admin" , "purchase"), async (req, res) => {
   try {
     const result = await LiveOrder.deleteOne({ _id: req.params.id });
     if (result.deletedCount === 0) {
@@ -165,7 +162,7 @@ router.delete("/:id",auth, async (req, res) => {
  * POST /live-orders/:id/archive
  * Verplaats item van live_orders → archive_orders
  */
-router.post("/:id/archive",auth, async (req, res) => {
+router.post("/:id/archive",auth("admin" , "purchase"), async (req, res) => {
   try {
     // 1) Haal het item uit live
     const doc = await LiveOrder.findOneAndDelete({ _id: req.params.id }).lean();
@@ -180,7 +177,7 @@ router.post("/:id/archive",auth, async (req, res) => {
   }
 });
 
-router.post("/:id/product",auth, async (req, res) => {
+router.post("/:id/product",auth("admin" , "purchase"), async (req, res) => {
   try {
     const { id } = req.params;
     const { productId, aantal } = req.body;
@@ -207,7 +204,7 @@ router.post("/:id/product",auth, async (req, res) => {
 
 
 
-router.get("/:id/pdf", auth,async (req, res) => {
+router.get("/:id/pdf", auth("admin" , "purchase"),async (req, res) => {
   try {
     const order = await LiveOrder
       .findById(req.params.id)

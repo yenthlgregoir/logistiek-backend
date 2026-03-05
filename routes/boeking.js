@@ -1,12 +1,11 @@
 import express from "express";
 import { createBoeking, getBoekingen, getBoekingById , changeStatus, getVrijeToestellen, assignToestel, boekingVerwijderen, updateBoeking } from "../service/boekingService.js";
-import auth from "../middelware/auth.js";
-
+import auth from "../middelware/auth.js"
 const router = express.Router();
 
 // POST /api/boekingen
-router.get("/", auth, getBoekingen);
-router.post("/", auth, async (req, res) => {
+router.get("/", auth("admin" , "renting"), getBoekingen);
+router.post("/", auth("admin" , "renting"), async (req, res) => {
   try {
     const boeking = await createBoeking(req.body);
 
@@ -23,7 +22,7 @@ router.post("/", auth, async (req, res) => {
 });
 
 // GET /boekingen/:id
-router.get('/:id', auth, async (req, res) => {
+router.get('/:id', auth("admin" , "renting"), async (req, res) => {
   try {
     const { id } = req.params
 
@@ -41,12 +40,12 @@ router.get('/:id', auth, async (req, res) => {
   }
 })
 
-router.patch("/:id/status", changeStatus);
+router.patch("/:id/status", auth("admin" , "renting"), changeStatus);
 
-router.get("/toestellen/vrij", getVrijeToestellen);
-router.patch("/:id/toestellen/assign", assignToestel);
+router.get("/toestellen/vrij", auth("admin" , "renting"), getVrijeToestellen);
+router.patch("/:id/toestellen/assign", auth("admin" , "renting"), assignToestel);
 
-router.delete("/:id" , boekingVerwijderen)
+router.delete("/:id" ,auth("admin" , "renting"), boekingVerwijderen)
 
-router.patch('/:id' , updateBoeking)
+router.patch('/:id' , auth("admin" , "renting"), updateBoeking)
 export default router;

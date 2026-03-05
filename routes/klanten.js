@@ -8,7 +8,7 @@ const router = express.Router();
 /**
  * GET /
  */
-router.get("/", auth, async (req, res) => {
+router.get("/", auth("admin" , "renting"), async (req, res) => {
   try {
     const items = await klantenService.getAll(req.query);
     res.json({ items });
@@ -21,7 +21,7 @@ router.get("/", auth, async (req, res) => {
 /**
  * GET /:id
  */
-router.get("/:id", auth, async (req, res) => {
+router.get("/:id", auth("admin" , "renting"), async (req, res) => {
   try {
     const item = await klantenService.getById(req.params.id);
     if (!item) {
@@ -36,7 +36,7 @@ router.get("/:id", auth, async (req, res) => {
 /**
  * POST /
  */
-router.post("/", auth, async (req, res) => {
+router.post("/", auth("admin" , "renting"), async (req, res) => {
   try {
     const nieuw = await klantenService.create(req.body);
     res.status(201).json(nieuw);
@@ -48,7 +48,7 @@ router.post("/", auth, async (req, res) => {
 /**
  * PATCH /:id
  */
-router.patch("/:id", auth, async (req, res) => {
+router.patch("/:id", auth("admin" , "renting"), async (req, res) => {
   try {
     const updated = await klantenService.update(req.params.id, req.body);
     if (!updated) {
@@ -63,7 +63,7 @@ router.patch("/:id", auth, async (req, res) => {
 /**
  * DELETE /:id
  */
-router.delete("/:id", auth, async (req, res) => {
+router.delete("/:id", auth("admin" , "renting"), async (req, res) => {
   try {
     const deleted = await klantenService.delete(req.params.id);
     if (!deleted) {
@@ -84,7 +84,7 @@ router.delete("/:id", auth, async (req, res) => {
  * POST /:id/leveradressen
  * Leveradres toevoegen
  */
-router.post("/:id/leveradressen", auth, async (req, res) => {
+router.post("/:id/leveradressen", auth("admin" , "renting"), async (req, res) => {
   try {
     const updated = await klantenService.addLeverAdres(
       req.params.id,
@@ -106,7 +106,7 @@ router.post("/:id/leveradressen", auth, async (req, res) => {
  * DELETE /:id/leveradressen/:adresId
  * Leveradres verwijderen
  */
-router.delete("/:id/leveradressen/:adresId", auth, async (req, res) => {
+router.delete("/:id/leveradressen/:adresId", auth("admin" , "renting"), async (req, res) => {
   try {
     const updated = await klantenService.removeLeverAdres(
       req.params.id,

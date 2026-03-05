@@ -1,19 +1,30 @@
-// middleware/auth.js
 import jwt from "jsonwebtoken";
 
-export default function auth(req, res, next) {
-  const header = req.headers.authorization;
-  if (!header) {
-    return res.status(401).json({ message: "No token" });
-  }
+const auth = (...roles) => {
+  return (req, res, next) => {
+    const authHeader = req.header("Authorization");
 
-  const token = header.split(" ")[1];
+    if (!authHeader) {
+      return res.status(401).json({ message: "Geen token" });
+    }
 
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded;
-    next();
-  } catch {
-    return res.status(401).json({ message: "Invalid token" });
-  }
-}
+    // 🔥 verwijder "Bearer "
+    const token = authHeader.startsWith("Bearer ")
+      ? authHeader.split(" ")[1]
+      : authHeader;
+
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      req.user = decoded;
+
+      if (roles.length && !roles.includes(req.user.role)) {
+        return res.status(403).json({ message: "Geen toegang" });
+      }
+
+      next();
+    } catch (err) {
+      return res.status(401).json({ message: "Ongeldige token" });
+    }
+  };
+};
+export default auth;

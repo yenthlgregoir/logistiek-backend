@@ -5,7 +5,7 @@ import * as toestelService from "../service/toestelService.js";
 
 const router = express.Router();
 
-router.get("/", auth, async (req, res) => {
+router.get("/", auth("admin" , "renting"), async (req, res) => {
   try {
     const { search, sort = "createdAt", order = "desc" } = req.query;
 
@@ -29,7 +29,7 @@ router.get("/", auth, async (req, res) => {
   }
 });
 
-router.get("/toestel/:id", auth, async (req, res) => {
+router.get("/toestel/:id", auth("admin" , "renting"), async (req, res) => {
   try {
     const item = await toestelService.getToestelById(req.params.id);
 
@@ -44,7 +44,7 @@ router.get("/toestel/:id", auth, async (req, res) => {
   }
 });
 
-router.post("/", auth, async (req, res) => {
+router.post("/", auth("admin" , "renting"), async (req, res) => {
   try {
     const nieuw = await toestelService.createToestel(req.body);
     res.status(201).json(nieuw);
@@ -54,7 +54,7 @@ router.post("/", auth, async (req, res) => {
   }
 });
 
-router.patch("/:id", auth, async (req, res) => {
+router.patch("/:id", auth("admin" , "renting"), async (req, res) => {
   try {
     const updated = await toestelService.updateToestel(req.params.id, req.body);
     res.json(updated);
@@ -68,7 +68,7 @@ router.patch("/:id", auth, async (req, res) => {
   }
 });
 
-router.delete("/:id", auth, async (req, res) => {
+router.delete("/:id", auth("admin" , "renting"), async (req, res) => {
   try {
     await toestelService.deleteToestel(req.params.id);
     res.json({ message: "Succesvol verwijderd" });
@@ -82,7 +82,7 @@ router.delete("/:id", auth, async (req, res) => {
   }
 });
 
-router.get("/types", auth, async (req, res) => {
+router.get("/types", auth("admin" , "renting"), async (req, res) => {
   try {
     const types = await toestelService.getTypes();
     res.json({ types });
@@ -91,7 +91,7 @@ router.get("/types", auth, async (req, res) => {
   }
 });
 
-router.patch("/types/:id", auth, async (req, res) => {
+router.patch("/types/:id", auth("admin" , "renting"), async (req, res) => {
   try {
     const toestelId = req.params.id;
     const data = req.body;

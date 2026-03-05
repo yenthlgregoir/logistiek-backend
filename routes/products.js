@@ -1,14 +1,13 @@
 import express from 'express'
 import { Product } from '../models/Product.js' // pas pad aan indien nodig
 import auth from "../middelware/auth.js";
-
 const router = express.Router()
 
 /**
  * GET /products
  * Optioneel zoeken via ?search=
  */
-router.get("/",auth, async (req, res) => {
+router.get("/",auth("admin" , "purchase"), async (req, res) => {
   try {
     const {
       q,
@@ -64,7 +63,7 @@ router.get("/",auth, async (req, res) => {
 /**
  * GET /products/:id
  */
-router.get('/:id',auth, async (req, res) => {
+router.get('/:id',auth("admin" , "purchase"), async (req, res) => {
   try {
     const product = await Product.findById(req.params.id)
 
@@ -81,7 +80,7 @@ router.get('/:id',auth, async (req, res) => {
 /**
  * POST /products
  */
-router.post('/',auth, async (req, res) => {
+router.post('/',auth("admin" , "purchase"), async (req, res) => {
   try {
     const product = new Product(req.body)
     const savedProduct = await product.save()
@@ -94,7 +93,7 @@ router.post('/',auth, async (req, res) => {
 /**
  * PUT /products/:id
  */
-router.put('/:id',auth, async (req, res) => {
+router.put('/:id',auth("admin" , "purchase"), async (req, res) => {
   try {
     const updatedProduct = await Product.findByIdAndUpdate(
       req.params.id,
@@ -115,7 +114,7 @@ router.put('/:id',auth, async (req, res) => {
 /**
  * DELETE /products/:id
  */
-router.delete('/:id',auth, async (req, res) => {
+router.delete('/:id',auth("admin" , "purchase"), async (req, res) => {
   try {
     const deletedProduct = await Product.findByIdAndDelete(req.params.id)
 
