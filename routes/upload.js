@@ -11,15 +11,6 @@ const router = express.Router()
 router.post("/:id/upload",auth, upload.array("files"), async (req, res) => {
   try {
     const orderId = req.params.id;
-
-    // ── Debug logging
-    console.log("[UPLOAD] orderId:", orderId);
-    console.log("[UPLOAD] content-type:", req.headers["content-type"]);
-    console.log("[UPLOAD] files?:", Array.isArray(req.files), "count:", req.files?.length);
-    if (req.files?.length) {
-      console.log("[UPLOAD] originals:", req.files.map(f => f.originalname));
-    }
-
     // ── Vriendelijke fout als er geen files zijn
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({

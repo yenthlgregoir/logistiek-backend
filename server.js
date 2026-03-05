@@ -25,8 +25,6 @@ app.use(express.json());
 
 
 mongoose.connect(process.env.MONGO_URI)
- .then(() => console.log("✅ MongoDB verbonden"))
-  .catch(err => console.error("❌ MongoDB fout:", err));;
 // Routes mounten
 app.use("/live-orders", liveOrdersRouter);
 app.use("/archive-orders", archiveOrdersRouter);
@@ -37,6 +35,5 @@ app.use("/klant" , klantenRouter);
 app.use("/toestellen" , toestelRouter)
 app.use("/boekingen", boekingRouter);
 
-
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT);

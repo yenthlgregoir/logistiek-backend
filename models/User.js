@@ -8,7 +8,9 @@ const userSchema = new mongoose.Schema({
     type: String,
     enum: ["admin", "purchase", "renting"],
     default: "user" 
-  }
+  },
+  resetToken: String,
+  resetTokenExpiry: Date
 });
 
 export const User =  mongoose.model("User", userSchema);
