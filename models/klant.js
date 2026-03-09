@@ -10,7 +10,7 @@ const adresSchema = new mongoose.Schema({
 
 const klantSchema = new mongoose.Schema({
   naam: { type: String, required: true },
-  klantNummer: { type: String, required: true , unique: true },
+  klantNummer: { type: String, required: true},
   telefoonnummer: { type: String, index: true },
   mailadres: { type: String, index: true },
   factuurAdres: adresSchema,
