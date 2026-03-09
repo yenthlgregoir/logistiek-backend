@@ -26,7 +26,6 @@ const boekingSchema = new mongoose.Schema(
       },
     },
 
-    // NIEUW: verplicht toestelType (capaciteit per type)
     toestelType: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "ToestelType",
@@ -45,7 +44,7 @@ const boekingSchema = new mongoose.Schema(
 
     type: {
       type: String,
-      enum: ["levering", "ophaling"],
+      enum: ["levering door logistiek", "ophaling door klant"],
       required: true,
     },
 
@@ -69,6 +68,12 @@ const boekingSchema = new mongoose.Schema(
       ref: "Adres",
       required: false,
     },
+    
+    comment: {
+      type: String,
+      ref: "Comment",
+      required: false,
+    }
   },
   { timestamps: true }
 );

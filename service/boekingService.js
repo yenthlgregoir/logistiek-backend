@@ -24,8 +24,8 @@ export const getBoekingen = async (req, res) => {
         path: "toestelType",
         select: "naam",
       })
-      .sort({ beginDatum: 1 }) // 👈 waarschijnlijk was dit ook fout (startDatum bestond niet)
-      .lean(); // 👈 BELANGRIJK (maakt gewone JS objecten)
+      .sort({ beginDatum: 1 }) 
+      .lean(); 
 
     // 🔎 Leveradres correct toevoegen
     for (const boeking of boekingen) {
@@ -36,6 +36,17 @@ export const getBoekingen = async (req, res) => {
         );
 
         boeking.leverAdresDetails = gevondenAdres || null;
+
+          // Datum formatting
+    if (boeking.beginDatum) {
+      boeking.beginDatumFormatted =
+        new Date(boeking.beginDatum).toLocaleDateString("nl-BE");
+    }
+
+    if (boeking.eindDatum) {
+      boeking.eindDatumFormatted =
+        new Date(boeking.eindDatum).toLocaleDateString("nl-BE");
+    }
       } else {
         boeking.leverAdresDetails = null;
       }
@@ -220,7 +231,11 @@ export const getVrijeToestellen = async (req, res) => {
     const typeId = new mongoose.Types.ObjectId(toestelType);
 
     // 1️⃣ Alle toestellen van dit type
-    const toestellen = await Toestel.find({ type: typeId }).lean();
+    const toestellen = await Toestel.find({ type: typeId }).populate({
+          path: "type",
+          model: "ToestelType",
+          select: "naam"
+        }).lean();
 
     if (!toestellen.length) {
       return res.status(200).json([]);

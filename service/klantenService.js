@@ -59,6 +59,7 @@ async updateLeverAdres(req, res) {
     const { id } = req.params;                // Klant ID
     const { adres } = req.body;  // Nieuw adres object met _id en velden
 
+    
     if (!adres || !adres._id) {
       return res.status(400).json({ message: "Leveradres met _id is verplicht." });
     }

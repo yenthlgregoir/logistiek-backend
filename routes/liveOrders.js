@@ -39,7 +39,6 @@ router.get("/",auth("admin" , "purchase"), async (req, res) => {
       useText = true;
       finalFilter.$text = { $search: q };
     }
-    console.log(q);
 
     const pageNum = Math.max(parseInt(page, 10) || 1, 1);
     const limitNum = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
@@ -112,7 +111,6 @@ router.post("/",auth("admin" , "purchase"), async (req, res) => {
     res.status(201).json(created);
   } catch (err) {
     // Duplicate key (bv. id al in gebruik)
-    console.log(err);
     if (err.code === 11000) {
       return res.status(409).json({ message: "ID bestaat al", keyValue: err.keyValue });
     }
@@ -197,7 +195,6 @@ router.post("/:id/product",auth("admin" , "purchase"), async (req, res) => {
 
     res.json(updatedOrder);
   } catch (error) {
-    console.log(error);
     res.status(500).json({ error: error.message });
   }
 });
