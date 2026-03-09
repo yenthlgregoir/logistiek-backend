@@ -1,5 +1,5 @@
 import express from "express";
-import { createBoeking, getBoekingen, getBoekingById , changeStatus, getVrijeToestellen, assignToestel, boekingVerwijderen, updateBoeking } from "../service/boekingService.js";
+import { createBoeking, getBoekingen, getBoekingById , changeStatus, getVrijeToestellen, assignToestel, boekingVerwijderen, updateBoeking,updatePeriode } from "../service/boekingService.js";
 import auth from "../middelware/auth.js"
 const router = express.Router();
 
@@ -48,4 +48,7 @@ router.patch("/:id/toestellen/assign", auth("admin" , "renting"), assignToestel)
 router.delete("/:id" ,auth("admin" , "renting"), boekingVerwijderen)
 
 router.patch('/:id' , auth("admin" , "renting"), updateBoeking)
+
+router.patch("/periode/update", updatePeriode);
+
 export default router;
