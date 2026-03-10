@@ -128,13 +128,14 @@ router.get('/export-pdf' , auth("admin" ,"renting"),async (req, res) => {
       const html = await ejs.renderFile(templatePath , {boekingen})
 const browser = await puppeteer.launch({
   headless: "new",
+  executablePath: puppeteer.executablePath(), // Zorgt dat Puppeteer zijn eigen Chromium gebruikt
   args: [
     "--no-sandbox",
     "--disable-setuid-sandbox",
     "--disable-dev-shm-usage",
     "--disable-gpu"
   ]
-});      const page =  await browser.newPage();
+});   const page =  await browser.newPage();
       await page.setContent(html, { waitUntil: 'networkidle0' });
 
      const pdfBuffer = await page.pdf({
