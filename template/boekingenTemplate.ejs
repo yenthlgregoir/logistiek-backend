@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Boekingen Overzicht</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      font-size: 13px;
+      margin: 30px;
+      color: #333;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 30px;
+      font-size: 24px;
+      color: #2c3e50;
+      letter-spacing: 1px;
+    }
+
+    /* Tabelstijl */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    th, td {
+      padding: 10px 12px;
+      text-align: left;
+    }
+
+    th {
+      background-color: #34495e;
+      color: #ecf0f1;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      border-bottom: 2px solid #2c3e50;
+    }
+
+    tr:nth-child(even) {
+      background-color: #f8f9fa;
+    }
+
+    tr:nth-child(odd) {
+      background-color: #ffffff;
+    }
+
+    tr:hover {
+      background-color: #e8f0fe;
+      transition: background-color 0.3s ease;
+    }
+
+    td {
+      border-bottom: 1px solid #ddd;
+    }
+
+    td > span.address {
+      display: block;
+      font-size: 12px;
+      color: #555;
+    }
+  </style>
+</head>
+<body>
+  <h1>Boekingen Overzicht</h1>
+  <table>
+    <thead>
+      <tr>
+        <th>Ref</th>
+        <th>Toestel</th>
+        <th>Adres</th>
+        <th>Periode</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% boekingen.forEach(boeking => { %>
+        <tr>
+          <td><%= boeking.ref %></td>
+          <td><%= boeking.toestel?.Ref || '-' %></td>
+          <td>
+            <% const adres = boeking.leverAdresDetails || boeking.klant?.factuurAdres || {}; %>
+            <span class="address">
+              <%= adres.naam || boeking.klant?.naam || '' %>: 
+              <%= adres.straat || '' %> <%= adres.huisnummer || '' %>, 
+              <%= adres.postcode || '' %> <%= adres.gemeente || '' %>
+            </span>
+          </td>
+          <td><%= boeking.beginDatumFormatted %> - <%= boeking.eindDatumFormatted %></td>
+          <td><%= boeking.status %></td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</body>
+</html>

@@ -1,4 +1,3 @@
-// services/toestelService.js
 import mongoose from "mongoose";
 import { Toestel } from "../models/toestel.js";
 import { ToestelType } from "../models/toestelType.js";
@@ -12,7 +11,6 @@ export const getToestellen = async (filter = {}, sort = { createdAt: -1 }) => {
       select: "naam",
     })
     .lean();
-  console.log(toestellen)
   return toestellen.sort((a, b) => {
     const aIsNumeric = /^[0-9]+$/.test(a.Ref);
     const bIsNumeric = /^[0-9]+$/.test(b.Ref);
@@ -28,7 +26,6 @@ export const getToestellen = async (filter = {}, sort = { createdAt: -1 }) => {
   });
 };
 
-// Haal 1 toestel op en vervang type ObjectId door type.naam
 export const getToestelById = async (id) => {
   return await Toestel.findById(id)
     .populate("type", "naam", "Ref" , "Chasisnummer" , "Nummerplaat")
@@ -63,26 +60,37 @@ export const createToestel = async (data) => {
 
 export const updateToestel = async (id, data) => {
   const toestel = await Toestel.findById(id);
-
-  if (!toestel) {
-    throw new Error("Toestel niet gevonden");
-  }
+  if (!toestel) throw new Error("Toestel niet gevonden");
 
   const { newType, ...rest } = data;
 
+  // 1️⃣ Nieuwe type aanmaken of ophalen
   if (newType) {
     let bestaandType = await ToestelType.findOne({ naam: newType });
-
     if (!bestaandType) {
       bestaandType = new ToestelType({ naam: newType });
       await bestaandType.save();
     }
-
     rest.type = bestaandType._id;
   }
 
-  Object.assign(toestel, rest);
+  // 2️⃣ Status fix (embedded object)
+  if (rest.status !== undefined) {
+    rest.status =
+      typeof rest.status === "object"
+        ? rest.status
+        : { statusType: rest.status };
+  }
 
+  // 3️⃣ Alleen toegestane velden updaten (veiligheid)
+  const allowedFields = ["naam", "Ref", "type", "status", "opmerking"];
+  allowedFields.forEach((field) => {
+    if (rest[field] !== undefined) {
+      toestel[field] = rest[field];
+    }
+  });
+
+  // 4️⃣ Opslaan en teruggeven
   return await toestel.save();
 };
 

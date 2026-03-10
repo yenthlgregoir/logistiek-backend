@@ -52,7 +52,7 @@ export const getBoekingen = async (req, res) => {
       }
     }
 
-    res.status(200).json(boekingen);
+    return boekingen;
   } catch (error) {
     console.error("Fout bij ophalen boekingen:", error);
     res.status(500).json({ message: "Fout bij ophalen boekingen" });
@@ -68,7 +68,7 @@ export const createBoeking = async (data) => {
     throw new Error("De boeking moet in de toekomst liggen!");
   }
 
-   if (!data.leverAdres) {
+  if (!data.leverAdres) {
     data.leverAdres = data.factuurAdres;
   }
 
@@ -81,19 +81,22 @@ export const createBoeking = async (data) => {
     throw new Error("ToestelType bestaat niet.");
   }
 
-  // 3️⃣ Tel toestellen van dit type
-  const totaalAantal = await Toestel.countDocuments({ type: typeId });
+  // 3️⃣ Tel actieve toestellen van dit type
+  const totaalAantal = await Toestel.countDocuments({
+    type: typeId,
+    "status.statusType": "Actief", // ✅ alleen actieve toestellen
+  });
 
   if (totaalAantal === 0) {
-    throw new Error("Er bestaan geen toestellen van dit type.");
+    throw new Error("Er bestaan geen actieve toestellen van dit type.");
   }
 
-  // 4️⃣ Zoek overlappende boekingen
+  // 4️⃣ Zoek overlappende boekingen van dit type
   const overlappendeBoekingen = await Boeking.find({
     beginDatum: { $lte: new Date(eindDatum) },
     eindDatum: { $gte: new Date(beginDatum) },
     toestelType: typeId
-  });
+  }).select("toestel").lean();
 
   const aantalBezet = overlappendeBoekingen.length;
 
@@ -110,6 +113,7 @@ export const createBoeking = async (data) => {
     nieuwNummer = laatsteNummer + 1;
   }
 
+  // 6️⃣ Klant checken
   const klantNaam = await Klant.findById(klant);
   if (!klantNaam) {
     throw new Error("Klant niet gevonden.");
@@ -117,7 +121,7 @@ export const createBoeking = async (data) => {
 
   const ref = `${nieuwNummer}/${typeExists.naam}/${klantNaam.naam}`;
 
-  // 6️⃣ Boeking opslaan — zonder toestel!
+  // 7️⃣ Boeking opslaan — zonder toestel!
   const nieuweBoeking = new Boeking({
     ...data,
     ref,
@@ -241,12 +245,15 @@ export const getVrijeToestellen = async (req, res) => {
     const eind = new Date(eindDatum);
     const typeId = new mongoose.Types.ObjectId(toestelType);
 
-    // 1️⃣ Alle toestellen van dit type
-    const toestellen = await Toestel.find({ type: typeId }).populate({
-          path: "type",
-          model: "ToestelType",
-          select: "naam"
-        }).lean();
+    // 1️⃣ Alle toestellen van dit type én actief
+    const toestellen = await Toestel.find({
+      type: typeId,
+      "status.statusType": "Actief" // ✅ extra check
+    }).populate({
+      path: "type",
+      model: "ToestelType",
+      select: "naam"
+    }).lean();
 
     if (!toestellen.length) {
       return res.status(200).json([]);
@@ -348,7 +355,7 @@ export const boekingVerwijderen = async (req ,res) => {
 export const updateBoeking = async (req, res) => {
   try {
     const { id } = req.params;
-    const updates = req.body; // object met de te updaten velden
+    const updates = { ...req.body };
 
     // 1️⃣ Boeking ophalen
     const boeking = await Boeking.findById(id);
@@ -356,36 +363,56 @@ export const updateBoeking = async (req, res) => {
       return res.status(404).json({ message: "Boeking niet gevonden." });
     }
 
-    // 2️⃣ Velden updaten
-    // Alleen specifieke velden updaten, bijvoorbeeld leverAdres, beginDatum, eindDatum
-    if (updates.leverAdres) boeking.leverAdres = updates.leverAdres;
-    if (updates.beginDatum) boeking.beginDatum = new Date(updates.beginDatum);
-    if (updates.eindDatum) boeking.eindDatum = new Date(updates.eindDatum);
-    if (updates.status) boeking.status = updates.status;
-    if (updates.klant) boeking.klant = updates.klant;
-    if (updates.toestelType) boeking.toestelType = updates.toestelType;
-    if (updates.comment) boeking.comment = updates.comment;
+    // 2️⃣ Datums correct omzetten
+    if (updates.beginDatum !== undefined) {
+      updates.beginDatum = new Date(updates.beginDatum);
+    }
+
+    if (updates.eindDatum !== undefined) {
+      updates.eindDatum = new Date(updates.eindDatum);
+    }
+
+    // 3️⃣ Alleen toegestane velden updaten
+    const allowedFields = [
+      "leverAdres",
+      "beginDatum",
+      "eindDatum",
+      "status",
+      "klant",
+      "toestelType",
+      "comment",
+    ];
+
+    allowedFields.forEach((field) => {
+      if (updates[field] !== undefined) {
+        boeking[field] = updates[field];
+      }
+    });
 
     boeking.updatedAt = new Date();
 
-    // 3️⃣ Opslaan
-    const savedBoeking = await boeking.save();
+    // 4️⃣ Opslaan
+    await boeking.save();
 
-    // 4️⃣ Populatie indien nodig
-    const populatedBoeking = await Boeking.findById(savedBoeking._id)
+    // 5️⃣ Populatie
+    const populatedBoeking = await Boeking.findById(boeking._id)
       .populate({ path: "klant", select: "naam leverAdressen" })
       .populate({ path: "toestel", select: "naam Ref type" })
       .lean();
 
-    // 5️⃣ Juiste leveradres toevoegen
-    if (populatedBoeking.klant && populatedBoeking.leverAdres) {
-      const gevondenAdres = populatedBoeking.klant.leverAdressen.find(
-        (adres) => adres._id.toString() === populatedBoeking.leverAdres.toString()
-      );
-      populatedBoeking.leverAdresDetails = gevondenAdres || null;
+    // 6️⃣ Leveradres details toevoegen
+    if (populatedBoeking?.klant?.leverAdressen && populatedBoeking.leverAdres) {
+      populatedBoeking.leverAdresDetails =
+        populatedBoeking.klant.leverAdressen.find(
+          (adres) =>
+            adres._id.toString() === populatedBoeking.leverAdres.toString()
+        ) || null;
     }
 
-    res.status(200).json({ message: "Boeking succesvol bijgewerkt.", boeking: populatedBoeking });
+    res.status(200).json({
+      message: "Boeking succesvol bijgewerkt.",
+      boeking: populatedBoeking,
+    });
   } catch (error) {
     console.error("Fout bij bijwerken boeking:", error);
     res.status(500).json({ message: "Fout bij bijwerken boeking." });

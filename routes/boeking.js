@@ -4,7 +4,18 @@ import auth from "../middelware/auth.js"
 const router = express.Router();
 
 // POST /api/boekingen
-router.get("/", auth("admin" , "renting"), getBoekingen);
+router.get("/", auth("admin" , "renting"), async (req, res) => {
+  try{
+    const boekingen = await getBoekingen();
+    res.status(200).json(boekingen);
+  }
+  catch (error) {
+    res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
 router.post("/", auth("admin" , "renting"), async (req, res) => {
   try {
     const boeking = await createBoeking(req.body);

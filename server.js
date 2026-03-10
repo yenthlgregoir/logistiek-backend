@@ -10,7 +10,11 @@ import toestelRouter from './routes/toestellen.js'
 import boekingRouter from './routes/boeking.js'
 import cors from 'cors';
 import dotenv from 'dotenv';
+import path from "path";
+import { fileURLToPath } from "url";
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 dotenv.config();
 
 const app = express();
@@ -34,6 +38,5 @@ app.use("/auth", authRouther);
 app.use("/klant" , klantenRouter);
 app.use("/toestellen" , toestelRouter)
 app.use("/boekingen", boekingRouter);
-
-const PORT = process.env.PORT || 3000;
+app.use("/assets", express.static(path.join(__dirname, "assets")));const PORT = process.env.PORT || 3000;
 app.listen(PORT);

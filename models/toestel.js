@@ -18,7 +18,7 @@ const statusSchema = new mongoose.Schema(
     },
     statusType: {
       type: String,
-      enum: ["Actief", "InHerstelling", "BuitenDienst"],
+      enum: ["Actief", "Kapot"],
       required: true,
       default: "Actief",
     },

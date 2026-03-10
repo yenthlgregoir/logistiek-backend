@@ -33,7 +33,6 @@ const boekingSchema = new mongoose.Schema(
       index: true,
     },
 
-    // toestel is optioneel → pas later koppelen
     toestel: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Toestel",
@@ -44,7 +43,7 @@ const boekingSchema = new mongoose.Schema(
 
     type: {
       type: String,
-      enum: ["levering door logistiek", "ophaling door klant"],
+      enum: ["Transport door logistiek", "ophaling door klant"],
       required: true,
     },
 
@@ -62,7 +61,6 @@ const boekingSchema = new mongoose.Schema(
       index: true,
     },
 
-    // Pas ref aan naar jouw effectief model!
     leverAdres: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Adres",
