@@ -126,8 +126,15 @@ router.get('/export-pdf' , auth("admin" ,"renting"),async (req, res) => {
 
       const templatePath = path.join(__dirname, '..', 'template', 'boekingenTemplate.ejs');
       const html = await ejs.renderFile(templatePath , {boekingen})
-      const browser = await puppeteer.launch();
-      const page =  await browser.newPage();
+const browser = await puppeteer.launch({
+  headless: "new",
+  args: [
+    "--no-sandbox",
+    "--disable-setuid-sandbox",
+    "--disable-dev-shm-usage",
+    "--disable-gpu"
+  ]
+});      const page =  await browser.newPage();
       await page.setContent(html, { waitUntil: 'networkidle0' });
 
      const pdfBuffer = await page.pdf({
