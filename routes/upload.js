@@ -5,9 +5,9 @@ import {upload} from '../models/multer.js'
 import mime from "mime-types";
 import auth from "../middelware/auth.js";
 import * as boekingService from "../service/boekingService.js"
-import ejs from 'ejs'
-import puppeteer from "puppeteer"
-import { fileURLToPath } from 'url';
+import PDFDocument from "pdfkit";
+import * as pdfService from "../service/pdfService.js"
+
 
 
 const router = express.Router()
@@ -71,15 +71,12 @@ router.delete("/:id/files/:filename",auth, async (req, res) => {
 router.get("/:id/files", async (req, res) => {
   const dir = path.join("uploads", "orders", req.params.id);
 
-  // Als map niet bestaat → lege lijst
   if (!fs.existsSync(dir)) {
     return res.json([]);
   }
 
-  // Lees directory
   const files = await fs.readdir(dir);
 
-  // Geef URLs terug
   const fileData = files.map(file => ({
     name: file,
     url: `/uploads/orders/${req.params.id}/${file}`
@@ -118,73 +115,78 @@ router.get("/:id/files/:filename/open",auth, async (req, res) => {
   }
 });
 
-router.get('/export-pdf' , auth("admin" ,"renting"),async (req, res) => {
+router.get('/export-pdf', auth("admin","renting"), async (req,res)=>{
   try{
-      const boekingen = await boekingService.getBoekingen();
-      const __filename = fileURLToPath(import.meta.url);
-      const __dirname = path.dirname(__filename);
 
-      const templatePath = path.join(__dirname, '..', 'template', 'boekingenTemplate.ejs');
-      const html = await ejs.renderFile(templatePath , {boekingen})
-const browser = await puppeteer.launch({
-  headless: "new",
-  executablePath: puppeteer.executablePath(), // Zorgt dat Puppeteer zijn eigen Chromium gebruikt
-  args: [
-    "--no-sandbox",
-    "--disable-setuid-sandbox",
-    "--disable-dev-shm-usage",
-    "--disable-gpu"
-  ]
-});   const page =  await browser.newPage();
-      await page.setContent(html, { waitUntil: 'networkidle0' });
+    const boekingen = await boekingService.getBoekingen();
 
-     const pdfBuffer = await page.pdf({
-  format: 'A4',
-  printBackground: true,
-      landscape: true,      
+    const doc = new PDFDocument({ 
+      size: "A4",
+      margin: 30,
+      layout: "landscape"
+    });
 
-  margin: { top: '20px', right: '20px', bottom: '20px', left: '20px' }
+    res.setHeader('Content-Type','application/pdf');
+    res.setHeader('Content-Disposition','attachment; filename=boekingen.pdf');
+
+    doc.pipe(res);
+
+   
+    // Titel
+    doc
+      .fontSize(20)
+      .text("Boekingen Overzicht", {align:"center"});
+
+    doc.moveDown(2);
+
+    // Kolommen
+    const startY = doc.y;
+
+    doc.fontSize(12);
+    doc.text("ID", 50, startY);
+    doc.text("Naam", 120, startY);
+    doc.text("Email", 300, startY);
+    doc.text("Datum", 450, startY);
+
+    doc.moveDown();
+
+    let y = startY + 25;
+
+    boekingen.forEach((boeking)=>{
+      doc.text(boeking.id, 50, y);
+      doc.text(boeking.naam, 120, y);
+      doc.text(boeking.email, 300, y);
+      doc.text(boeking.datum, 450, y);
+
+      y += 20;
+
+      // Nieuwe pagina indien nodig
+      if (y > 550) {
+        doc.addPage();
+        y = 50;
+      }
+    });
+
+    doc.end();
+
+  }catch(error){
+    console.error(error);
+    res.status(500).send("Fout bij PDF genereren");
+  }
 });
 
-await browser.close();
-
-res.setHeader('Content-Type', 'application/pdf');
-res.setHeader('Content-Disposition', 'attachment; filename=boekingen.pdf');
-res.send(pdfBuffer);
-      }catch(error){
-        console.error(error);
-        res.status(500).send('Fout bij PDF genereren');
-      }
-  });
-router.get('/export-pdf/:id' , auth("admin" ,"renting"),async (req, res) => {
+router.get("/export-pdf/:id", auth("admin","renting"), async (req,res)=>{
   try{
-      const {id} = req.params
-      const boeking = await boekingService.getBoekingById(id);
-      const __filename = fileURLToPath(import.meta.url);
-      const __dirname = path.dirname(__filename);
 
-      const templatePath = path.join(__dirname, '..', 'template', 'boekingTemplate.ejs');
-      const html = await ejs.renderFile(templatePath , {boeking})
-      const browser = await puppeteer.launch();
-      const page =  await browser.newPage();
-      await page.setContent(html, { waitUntil: 'networkidle0' });
+    const { id } = req.params;
 
-     const pdfBuffer = await page.pdf({
-  format: 'A4',
-  printBackground: true,
+    const boeking = await boekingService.getBoekingById(id);
 
-  margin: { top: '20px', right: '20px', bottom: '20px', left: '20px' }
+    pdfService.generateBoekingPDF(res, boeking);
+
+  }catch(error){
+    console.error(error);
+    res.status(500).send("Fout bij PDF genereren");
+  }
 });
-
-await browser.close();
-
-res.setHeader('Content-Type', 'application/pdf');
-res.setHeader('Content-Disposition', 'attachment; filename=boekingen.pdf');
-res.send(pdfBuffer);
-      }catch(error){
-        console.error(error);
-        res.status(500).send('Fout bij PDF genereren');
-      }
-  });
-
 export default router;
