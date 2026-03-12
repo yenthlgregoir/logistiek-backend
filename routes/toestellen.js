@@ -2,26 +2,67 @@
 import express from "express";
 import auth from "../middelware/auth.js";
 import * as toestelService from "../service/toestelService.js";
+import { ToestelType } from "../models/toestelType.js";
+import { Klant } from "../models/klant.js"
+import {Toestel} from '../models/toestel.js'
+import * as boekingService from "../service/boekingService.js"
 
 const router = express.Router();
 
-router.get("/", auth("admin" , "renting"), async (req, res) => {
+router.get("/", auth("admin", "renting"), async (req, res) => {
   try {
-    const { search, sort = "createdAt", order = "desc" } = req.query;
+    const { search, type, klant, beginDatum, eindDatum, sort = "createdAt", order = "desc" } = req.query;
 
     const query = {};
 
-    if (search) {
-      query.$or = [
-        { cntrRef: { $regex: search, $options: "i" } },
-        // Omdat type een ObjectId is, zoek hier in de gekoppelde collectie eventueel anders:
-        // Of via een populate en filter (complexer)
-      ];
+    // --- TYPE filter ---
+    if (type) {
+      const typeDoc = await ToestelType.findOne({ naam: type }).lean();
+      if (typeDoc) query.type = typeDoc._id;
+     
     }
 
-    const sortObj = { [sort]: order === "desc" ? -1 : 1 };
+    // --- KLANT filter ---
+    if (klant) {
+      const klantDoc = await Klant.findOne({ naam: klant }).lean();
+      if (klantDoc) query.klant = klantDoc._id;
+     
+    }
 
-    const items = await toestelService.getToestellen(query, sortObj);
+    let items = [];
+
+    // --- VRIJE TOESTELLEN FILTER ---
+    if (beginDatum && eindDatum) {
+      // Hergebruik de bestaande functie van boekingService
+      const vrijeToestellen = await boekingService.getVrijeToestellen({
+        query: {
+          beginDatum,
+          eindDatum,
+          toestelType: query.type ? query.type.toString() : type || "", 
+          klant:query.klant ? query.klant.toString() : klant || "",
+        },
+      });
+      items = vrijeToestellen;
+    } else {
+      // --- Normale toestellen query ---
+
+      const sortObj = { [sort]: order === "desc" ? -1 : 1 };
+      items = await toestelService.getToestellen(query, sortObj);
+    }
+
+    // --- SEARCH filter ---
+    if (search && search !== "undefined") {
+      const lower = search.toLowerCase();
+      items = items.filter(
+        (t) =>
+          t.type?.naam?.toLowerCase().includes(lower) ||
+          t.klant?.naam?.toLowerCase().includes(lower) ||
+          t.Ref?.toLowerCase().includes(lower) ||
+          t.chasisnummer?.toLowerCase().includes(lower) ||
+          t.nrplaat?.toLowerCase().includes(lower)
+      );
+    }
+
     res.json({ items });
   } catch (err) {
     console.error(err);
@@ -29,7 +70,7 @@ router.get("/", auth("admin" , "renting"), async (req, res) => {
   }
 });
 
-router.get("/toestel/:id", auth("admin" , "renting"), async (req, res) => {
+router.get("/toestel/:id", auth("admin", "renting"), async (req, res) => {
   try {
     const item = await toestelService.getToestelById(req.params.id);
 
@@ -44,7 +85,7 @@ router.get("/toestel/:id", auth("admin" , "renting"), async (req, res) => {
   }
 });
 
-router.post("/", auth("admin" , "renting"), async (req, res) => {
+router.post("/", auth("admin", "renting"), async (req, res) => {
   try {
     const nieuw = await toestelService.createToestel(req.body);
     res.status(201).json(nieuw);
@@ -54,7 +95,7 @@ router.post("/", auth("admin" , "renting"), async (req, res) => {
   }
 });
 
-router.patch("/:id", auth("admin" , "renting"), async (req, res) => {
+router.patch("/:id", auth("admin", "renting"), async (req, res) => {
   try {
     const updated = await toestelService.updateToestel(req.params.id, req.body);
     res.json(updated);
@@ -68,7 +109,7 @@ router.patch("/:id", auth("admin" , "renting"), async (req, res) => {
   }
 });
 
-router.delete("/:id", auth("admin" , "renting"), async (req, res) => {
+router.delete("/:id", auth("admin", "renting"), async (req, res) => {
   try {
     await toestelService.deleteToestel(req.params.id);
     res.json({ message: "Succesvol verwijderd" });
@@ -82,21 +123,24 @@ router.delete("/:id", auth("admin" , "renting"), async (req, res) => {
   }
 });
 
-router.get("/types", auth("admin" , "renting"), async (req, res) => {
+router.get("/types", auth("admin", "renting"), async (req, res) => {
   try {
     const types = await toestelService.getTypes();
     res.json({ types });
-  } catch (error) {
+  } catch (_err) {
     res.status(400).json({ message: "Fout bij het ophalen van de types" });
   }
 });
 
-router.patch("/types/:id", auth("admin" , "renting"), async (req, res) => {
+router.patch("/types/:id", auth("admin", "renting"), async (req, res) => {
   try {
     const toestelId = req.params.id;
     const data = req.body;
 
-    const updatedToestel = await toestelService.changeToetelStatus(toestelId, data);
+    const updatedToestel = await toestelService.changeToetelStatus(
+      toestelId,
+      data,
+    );
 
     res.status(200).json({
       message: "Status succesvol aangepast",
@@ -106,6 +150,5 @@ router.patch("/types/:id", auth("admin" , "renting"), async (req, res) => {
     res.status(400).json({ error: err.message });
   }
 });
-
 
 export default router;

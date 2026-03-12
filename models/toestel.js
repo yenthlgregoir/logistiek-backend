@@ -23,14 +23,14 @@ const statusSchema = new mongoose.Schema(
       default: "Actief",
     },
   },
-  { _id: false }
+  { _id: false },
 );
 
 const toestelSchema = new mongoose.Schema(
   {
-       type: {
-      type: mongoose.Schema.Types.ObjectId,  
-      ref: "ToestelType",                    
+    type: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "ToestelType",
       required: true,
       index: true,
     },
@@ -39,7 +39,6 @@ const toestelSchema = new mongoose.Schema(
       type: String,
       trim: true,
       default: "N/A",
-      
     },
     nrplaat: {
       type: String,
@@ -53,22 +52,17 @@ const toestelSchema = new mongoose.Schema(
       trim: true,
       required: false,
       default: "N/A",
-
     },
     klant: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "Klant",
-    default: null,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Klant",
+      default: null,
       required: false,
       index: true,
-  },
+    },
     status: statusSchema,
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
-export const Toestel = mongoose.model(
-  "Toestel",
-  toestelSchema,
-  "Toestellen"
-);
+export const Toestel = mongoose.model("Toestel", toestelSchema, "Toestellen");

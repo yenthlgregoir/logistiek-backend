@@ -14,9 +14,8 @@ export async function sendInviteEmail(email, link) {
         <p>Klik op deze link om je wachtwoord te kiezen:</p>
         <a href="${link}">Set password</a>
         <p>Deze link is 1 uur geldig.</p>
-      `
+      `,
     });
-
   } catch (error) {
     console.error("Mail error:", error);
   }

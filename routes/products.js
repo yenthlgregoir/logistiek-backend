@@ -1,20 +1,15 @@
-import express from 'express'
-import { Product } from '../models/Product.js' // pas pad aan indien nodig
+import express from "express";
+import { Product } from "../models/Product.js"; // pas pad aan indien nodig
 import auth from "../middelware/auth.js";
-const router = express.Router()
+const router = express.Router();
 
 /**
  * GET /products
  * Optioneel zoeken via ?search=
  */
-router.get("/",auth("admin" , "purchase"), async (req, res) => {
+router.get("/", auth("admin", "purchase"), async (req, res) => {
   try {
-    const {
-      q,
-      leverancier,
-      categorie,
-      sort = "-createdAt"
-    } = req.query;
+    const { q, leverancier, categorie, sort = "-createdAt" } = req.query;
 
     const filter = {};
 
@@ -24,7 +19,7 @@ router.get("/",auth("admin" , "purchase"), async (req, res) => {
     const finalFilter = { ...filter };
 
     // Text search + fallback
-    console.log(q)
+    console.log(q);
     let useText = false;
     if (q && q.trim()) {
       useText = true;
@@ -45,7 +40,7 @@ router.get("/",auth("admin" , "purchase"), async (req, res) => {
         finalFilter.$or = [
           { productcode: { $regex: q, $options: "i" } },
           { omschrijving: { $regex: q, $options: "i" } },
-          { leverancier: { $regex: q, $options: "i" } }
+          { leverancier: { $regex: q, $options: "i" } },
         ];
 
         items = await Product.find(finalFilter).sort(sortObj).lean();
@@ -63,69 +58,69 @@ router.get("/",auth("admin" , "purchase"), async (req, res) => {
 /**
  * GET /products/:id
  */
-router.get('/:id',auth("admin" , "purchase"), async (req, res) => {
+router.get("/:id", auth("admin", "purchase"), async (req, res) => {
   try {
-    const product = await Product.findById(req.params.id)
+    const product = await Product.findById(req.params.id);
 
     if (!product) {
-      return res.status(404).json({ message: 'Product niet gevonden' })
+      return res.status(404).json({ message: "Product niet gevonden" });
     }
 
-    res.json(product)
+    res.json(product);
   } catch (err) {
-    res.status(400).json({ message: err.message })
+    res.status(400).json({ message: err.message });
   }
-})
+});
 
 /**
  * POST /products
  */
-router.post('/',auth("admin" , "purchase"), async (req, res) => {
+router.post("/", auth("admin", "purchase"), async (req, res) => {
   try {
-    const product = new Product(req.body)
-    const savedProduct = await product.save()
-    res.status(201).json(savedProduct)
+    const product = new Product(req.body);
+    const savedProduct = await product.save();
+    res.status(201).json(savedProduct);
   } catch (err) {
-    res.status(400).json({ message: err.message })
+    res.status(400).json({ message: err.message });
   }
-})
+});
 
 /**
  * PUT /products/:id
  */
-router.put('/:id',auth("admin" , "purchase"), async (req, res) => {
+router.put("/:id", auth("admin", "purchase"), async (req, res) => {
   try {
     const updatedProduct = await Product.findByIdAndUpdate(
       req.params.id,
       req.body,
-      { new: true, runValidators: true }
-    )
+      { new: true, runValidators: true },
+    );
 
     if (!updatedProduct) {
-      return res.status(404).json({ message: 'Product niet gevonden' })
+      return res.status(404).json({ message: "Product niet gevonden" });
     }
 
-    res.json(updatedProduct)
+    res.json(updatedProduct);
   } catch (err) {
-    res.status(400).json({ message: err.message })
+    res.status(400).json({ message: err.message });
   }
-})
+});
 
 /**
  * DELETE /products/:id
  */
-router.delete('/:id',auth("admin" , "purchase"), async (req, res) => {
+router.delete("/:id", auth("admin", "purchase"), async (req, res) => {
   try {
-    const deletedProduct = await Product.findByIdAndDelete(req.params.id)
+    const deletedProduct = await Product.findByIdAndDelete(req.params.id);
 
     if (!deletedProduct) {
-      return res.status(404).json({ message: 'Product niet gevonden' })
+      return res.status(404).json({ message: "Product niet gevonden" });
     }
 
-    res.json({ message: 'Product verwijderd' })
+    res.json({ message: "Product verwijderd" });
   } catch (err) {
-    res.status(400).json({ message: err.message })
+    res.status(400).json({ message: err.message });
   }
-})
+});
 
-export default router
+export default router;

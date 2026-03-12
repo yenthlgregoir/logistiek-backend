@@ -2,8 +2,14 @@ import mongoose from "mongoose";
 import { Toestel } from "../models/toestel.js";
 import { ToestelType } from "../models/toestelType.js";
 
+
 export const getToestellen = async (filter = {}, sort = { createdAt: -1 }) => {
-  const toestellen = await Toestel.find(filter)
+  // filter undefined of lege waarden
+  const cleanFilter = Object.fromEntries(
+    Object.entries(filter).filter(([_, v]) => v != null && v !== '' && v!== 'undefined')
+  );
+  console.log(cleanFilter);
+  const toestellen = await Toestel.find(cleanFilter)
     .sort(sort)
     .populate("type", "naam")
     .populate({
@@ -25,13 +31,6 @@ export const getToestellen = async (filter = {}, sort = { createdAt: -1 }) => {
     return new Date(b.createdAt) - new Date(a.createdAt);
   });
 };
-
-export const getToestelById = async (id) => {
-  return await Toestel.findById(id)
-    .populate("type", "naam", "Ref" , "Chasisnummer" , "Nummerplaat")
-    .lean();
-};
-
 export const createToestel = async (data) => {
   const { type, ...rest } = data;
 
@@ -59,41 +58,60 @@ export const createToestel = async (data) => {
 };
 
 export const updateToestel = async (id, data) => {
-  const toestel = await Toestel.findById(id);
-  if (!toestel) throw new Error("Toestel niet gevonden");
+  try {
+    const updates = { ...data };
 
-  const { newType, ...rest } = data;
-
-  // 1️⃣ Nieuwe type aanmaken of ophalen
-  if (newType) {
-    let bestaandType = await ToestelType.findOne({ naam: newType });
-    if (!bestaandType) {
-      bestaandType = new ToestelType({ naam: newType });
-      await bestaandType.save();
+    const toestel = await Toestel.findById(id);
+    if (!toestel) {
+      throw new Error("Toestel niet gevonden");
     }
-    rest.type = bestaandType._id;
-  }
 
-  // 2️⃣ Status fix (embedded object)
-  if (rest.status !== undefined) {
-    rest.status =
-      typeof rest.status === "object"
-        ? rest.status
-        : { statusType: rest.status };
-  }
-
-  // 3️⃣ Alleen toegestane velden updaten (veiligheid)
-  const allowedFields = ["naam", "Ref", "type", "status", "opmerking"];
-  allowedFields.forEach((field) => {
-    if (rest[field] !== undefined) {
-      toestel[field] = rest[field];
+    // 🔧 Fix voor ObjectId velden
+    if (updates.klant === "null" || updates.klant === "") {
+      updates.klant = null;
     }
-  });
 
-  // 4️⃣ Opslaan en teruggeven
-  return await toestel.save();
+    if (updates.type === "null" || updates.type === "") {
+      updates.type = null;
+    }
+
+    // status fix
+    if ("status" in updates) {
+      updates.status =
+        typeof updates.status === "object"
+          ? updates.status
+          : { statusType: updates.status };
+    }
+
+    const allowedFields = [
+      "naam",
+      "Ref",
+      "type",
+      "status",
+      "chasisnummer",
+      "nrplaat",
+      "klant",
+    ];
+
+    allowedFields.forEach((field) => {
+      if (field in updates) {
+        toestel[field] = updates[field];
+      }
+    });
+
+    await toestel.save();
+
+    const populated = await Toestel.findById(toestel._id)
+      .populate("type", "naam")
+      .populate("klant", "naam")
+      .lean();
+
+    return populated;
+  } catch (error) {
+    console.error("UpdateToestel error:", error);
+    throw error;
+  }
 };
-
 export const deleteToestel = async (id) => {
   const deleted = await Toestel.findByIdAndDelete(id);
   if (!deleted) {
@@ -117,7 +135,7 @@ export const changeToetelStatus = async (id, data) => {
   const updated = await Toestel.findByIdAndUpdate(
     id,
     { "status.statusType": statusType },
-    { new: true }
+    { new: true },
   );
 
   if (!updated) {

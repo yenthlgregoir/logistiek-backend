@@ -10,11 +10,11 @@ const toestelTypeSchema = new mongoose.Schema(
       trim: true,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 export const ToestelType = mongoose.model(
   "ToestelType",
   toestelTypeSchema,
-  "ToestelTypes"
+  "ToestelTypes",
 );

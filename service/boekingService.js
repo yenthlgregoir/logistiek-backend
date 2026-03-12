@@ -1,7 +1,7 @@
 import { Boeking } from "../models/boeking.js";
 import { Toestel } from "../models/toestel.js";
 import { ToestelType } from "../models/toestelType.js";
-import {Klant} from "../models/klant.js"
+import { Klant } from "../models/klant.js";
 import mongoose from "mongoose";
 
 export const getBoekingen = async (req, res) => {
@@ -24,29 +24,30 @@ export const getBoekingen = async (req, res) => {
         path: "toestelType",
         select: "naam",
       })
-      .sort({ beginDatum: 1 }) 
-      .lean(); 
+      .sort({ beginDatum: 1 })
+      .lean();
 
     // 🔎 Leveradres correct toevoegen
     for (const boeking of boekingen) {
       if (boeking.klant && boeking.leverAdres) {
         const gevondenAdres = boeking.klant.leverAdressen?.find(
-          (adres) =>
-            adres._id.toString() === boeking.leverAdres.toString()
+          (adres) => adres._id.toString() === boeking.leverAdres.toString(),
         );
 
         boeking.leverAdresDetails = gevondenAdres || null;
 
-          // Datum formatting
-    if (boeking.beginDatum) {
-      boeking.beginDatumFormatted =
-        new Date(boeking.beginDatum).toLocaleDateString("nl-BE");
-    }
+        // Datum formatting
+        if (boeking.beginDatum) {
+          boeking.beginDatumFormatted = new Date(
+            boeking.beginDatum,
+          ).toLocaleDateString("nl-BE");
+        }
 
-    if (boeking.eindDatum) {
-      boeking.eindDatumFormatted =
-        new Date(boeking.eindDatum).toLocaleDateString("nl-BE");
-    }
+        if (boeking.eindDatum) {
+          boeking.eindDatumFormatted = new Date(
+            boeking.eindDatum,
+          ).toLocaleDateString("nl-BE");
+        }
       } else {
         boeking.leverAdresDetails = null;
       }
@@ -95,13 +96,17 @@ export const createBoeking = async (data) => {
   const overlappendeBoekingen = await Boeking.find({
     beginDatum: { $lte: new Date(eindDatum) },
     eindDatum: { $gte: new Date(beginDatum) },
-    toestelType: typeId
-  }).select("toestel").lean();
+    toestelType: typeId,
+  })
+    .select("toestel")
+    .lean();
 
   const aantalBezet = overlappendeBoekingen.length;
 
   if (aantalBezet >= totaalAantal) {
-    throw new Error("Geen toestellen van dit type beschikbaar in deze periode.");
+    throw new Error(
+      "Geen toestellen van dit type beschikbaar in deze periode.",
+    );
   }
 
   // 5️⃣ Ref genereren
@@ -125,7 +130,7 @@ export const createBoeking = async (data) => {
   const nieuweBoeking = new Boeking({
     ...data,
     ref,
-    toestel: null
+    toestel: null,
   });
 
   return await nieuweBoeking.save();
@@ -139,16 +144,16 @@ export const getBoekingById = async (id) => {
         populate: {
           path: "type",
           model: "ToestelType",
-          select: "naam"
-        }
+          select: "naam",
+        },
       })
       .populate({
         path: "klant",
-        select: "naam leverAdressen factuurAdres"
+        select: "naam leverAdressen factuurAdres klantNummer",
       })
       .populate({
         path: "toestelType",
-        select: "naam"
+        select: "naam",
       })
       .lean();
 
@@ -161,7 +166,7 @@ export const getBoekingById = async (id) => {
     // 1️⃣ Leveradres zoeken
     if (boeking.klant && boeking.leverAdres) {
       adres = boeking.klant.leverAdressen.find(
-        a => a._id.toString() === boeking.leverAdres.toString()
+        (a) => a._id.toString() === boeking.leverAdres.toString(),
       );
     }
 
@@ -174,17 +179,18 @@ export const getBoekingById = async (id) => {
 
     // Datum formatting
     if (boeking.beginDatum) {
-      boeking.beginDatumFormatted =
-        new Date(boeking.beginDatum).toLocaleDateString("nl-BE");
+      boeking.beginDatumFormatted = new Date(
+        boeking.beginDatum,
+      ).toLocaleDateString("nl-BE");
     }
 
     if (boeking.eindDatum) {
-      boeking.eindDatumFormatted =
-        new Date(boeking.eindDatum).toLocaleDateString("nl-BE");
+      boeking.eindDatumFormatted = new Date(
+        boeking.eindDatum,
+      ).toLocaleDateString("nl-BE");
     }
 
     return boeking;
-
   } catch (error) {
     console.error("Fout bij ophalen boeking:", error);
     throw error;
@@ -231,58 +237,72 @@ export const changeStatus = async (req, res) => {
   }
 };
 
+
 export const getVrijeToestellen = async (req, res) => {
   try {
-    const { beginDatum, eindDatum, toestelType } = req.query;
+    const { beginDatum, eindDatum, toestelType , klant } = req.query;
 
-    if (!beginDatum || !eindDatum || !toestelType) {
+    if (!beginDatum || !eindDatum) {
       return res.status(400).json({
-        message: "beginDatum, eindDatum en toestelType zijn verplicht.",
+        message: "beginDatum en eindDatum zijn verplicht.",
       });
     }
 
     const start = new Date(beginDatum);
     const eind = new Date(eindDatum);
-    const typeId = new mongoose.Types.ObjectId(toestelType);
 
-    // 1️⃣ Alle toestellen van dit type én actief
-    const toestellen = await Toestel.find({
-      type: typeId,
-      "status.statusType": "Actief" // ✅ extra check
-    }).populate({
-      path: "type",
-      model: "ToestelType",
-      select: "naam"
-    }).lean();
+    // 1️⃣ Basis query: alleen actieve toestellen
+    let toestellenQuery = { "status.statusType": "Actief" };
 
-    if (!toestellen.length) {
-      return res.status(200).json([]);
+    // 🔹 Filter op toestelType als MongoDB ID
+    if (toestelType) {
+      if (/^[0-9a-fA-F]{24}$/.test(toestelType)) {
+        toestellenQuery.type = new mongoose.Types.ObjectId(toestelType);
+      }
     }
 
-    // 2️⃣ Zoek overlappende boekingen in periode
+    if (klant) {
+  if (mongoose.Types.ObjectId.isValid(klant)) {
+    toestellenQuery.klant = new mongoose.Types.ObjectId(klant);
+  } else {
+    console.warn("Ongeldig klant id:", klant);
+  }
+}
+
+    // 2️⃣ Vind toestellen en populate type
+    let toestellen = await Toestel.find(toestellenQuery)
+      .populate({
+        path: "type",
+        model: "ToestelType",
+        select: "naam",
+      })
+      .lean();
+
+
+    if (!toestellen.length) return res.status(200).json([]);
+
+    // 3️⃣ Filter overlappende boekingen
     const overlappendeBoekingen = await Boeking.find({
       toestel: { $ne: null },
       beginDatum: { $lte: eind },
       eindDatum: { $gte: start },
-    }).select("toestel").lean();
+    })
+      .select("toestel")
+      .lean();
 
-    // 3️⃣ Bezet toestel IDs
-    const bezetteToestelIds = overlappendeBoekingen.map(
-      (b) => b.toestel.toString()
+    const bezetteToestelIds = overlappendeBoekingen.map((b) =>
+      b.toestel.toString()
     );
 
-    // 4️⃣ Filter vrije toestellen
-    const vrijeToestellen = toestellen.filter(
+    toestellen = toestellen.filter(
       (t) => !bezetteToestelIds.includes(t._id.toString())
     );
 
-    res.status(200).json(vrijeToestellen);
 
+    return toestellen;
   } catch (error) {
     console.error("Fout bij ophalen vrije toestellen:", error);
-    res.status(500).json({
-      message: "Fout bij ophalen vrije toestellen.",
-    });
+    throw new Error("kapot")
   }
 };
 export const assignToestel = async (req, res) => {
@@ -308,7 +328,9 @@ export const assignToestel = async (req, res) => {
 
     // 3️⃣ Check dat toestel type overeenkomt met boekingstype
     if (!boeking.toestelType.equals(toestel.type)) {
-      return res.status(400).json({ message: "Toestel type komt niet overeen." });
+      return res
+        .status(400)
+        .json({ message: "Toestel type komt niet overeen." });
     }
 
     // 4️⃣ Check dat toestel vrij is in deze periode
@@ -320,7 +342,9 @@ export const assignToestel = async (req, res) => {
     });
 
     if (overlappendeBoekingen.length > 0) {
-      return res.status(400).json({ message: "Toestel is bezet in deze periode." });
+      return res
+        .status(400)
+        .json({ message: "Toestel is bezet in deze periode." });
     }
 
     // 5️⃣ Toewijzen
@@ -329,29 +353,34 @@ export const assignToestel = async (req, res) => {
     await boeking.save();
 
     res.status(200).json({ message: "Toestel succesvol toegewezen.", boeking });
-
   } catch (error) {
     console.error("Fout bij toewijzen toestel:", error);
     res.status(500).json({ message: "Fout bij toewijzen toestel." });
   }
 };
 
-export const boekingVerwijderen = async (req ,res) => {
-   try {
+export const boekingVerwijderen = async (req, res) => {
+  try {
     const { id } = req.params;
 
     const deletedBoeking = await Boeking.findByIdAndDelete(id);
 
     if (!deletedBoeking) {
-      return res.status(404).json({ message: 'Boeking niet gevonden' });
+      return res.status(404).json({ message: "Boeking niet gevonden" });
     }
 
-    res.status(200).json({ message: 'Boeking succesvol verwijderd', deletedBoeking });
+    res
+      .status(200)
+      .json({ message: "Boeking succesvol verwijderd", deletedBoeking });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: 'Er is een fout opgetreden bij het verwijderen van de boeking' });
+    res
+      .status(500)
+      .json({
+        message: "Er is een fout opgetreden bij het verwijderen van de boeking",
+      });
   }
-}
+};
 export const updateBoeking = async (req, res) => {
   try {
     const { id } = req.params;
@@ -405,7 +434,7 @@ export const updateBoeking = async (req, res) => {
       populatedBoeking.leverAdresDetails =
         populatedBoeking.klant.leverAdressen.find(
           (adres) =>
-            adres._id.toString() === populatedBoeking.leverAdres.toString()
+            adres._id.toString() === populatedBoeking.leverAdres.toString(),
         ) || null;
     }
 
@@ -425,7 +454,7 @@ export const updatePeriode = async (req, res) => {
 
     if (!boekingId || !beginDatum || !eindDatum) {
       return res.status(400).json({
-        message: "boekingId, beginDatum en eindDatum zijn verplicht."
+        message: "boekingId, beginDatum en eindDatum zijn verplicht.",
       });
     }
 
@@ -443,55 +472,53 @@ export const updatePeriode = async (req, res) => {
     const overlappendeBoekingen = await Boeking.find({
       _id: { $ne: boeking._id },
       beginDatum: { $lte: eind },
-      eindDatum: { $gte: start }
+      eindDatum: { $gte: start },
     }).lean();
 
     // -------------------------------
     // SCENARIO 1: toestel gekoppeld
     // -------------------------------
     if (boeking.toestel) {
-
       const toestelBezet = overlappendeBoekingen.some(
-        b => b.toestel && b.toestel.toString() === boeking.toestel.toString()
+        (b) => b.toestel && b.toestel.toString() === boeking.toestel.toString(),
       );
 
       if (toestelBezet) {
         return res.status(400).json({
-          message: "Het gekoppelde toestel is bezet in deze periode."
+          message: "Het gekoppelde toestel is bezet in deze periode.",
         });
       }
-
-    } 
+    }
     // -------------------------------
     // SCENARIO 2: geen toestel
     // -------------------------------
     else {
-
       // alle toestellen van type
       const toestellen = await Toestel.find({
-        type: boeking.toestelType
-      }).select("_id").lean();
+        type: boeking.toestelType,
+      })
+        .select("_id")
+        .lean();
 
       if (!toestellen.length) {
         return res.status(400).json({
-          message: "Er bestaan geen toestellen van dit type."
+          message: "Er bestaan geen toestellen van dit type.",
         });
       }
 
       const bezetteToestellen = overlappendeBoekingen
-        .filter(b => b.toestel)
-        .map(b => b.toestel.toString());
+        .filter((b) => b.toestel)
+        .map((b) => b.toestel.toString());
 
       const vrijeToestellen = toestellen.filter(
-        t => !bezetteToestellen.includes(t._id.toString())
+        (t) => !bezetteToestellen.includes(t._id.toString()),
       );
 
       if (!vrijeToestellen.length) {
         return res.status(400).json({
-          message: "Geen toestellen van dit type beschikbaar in deze periode."
+          message: "Geen toestellen van dit type beschikbaar in deze periode.",
         });
       }
-
     }
 
     // 3️⃣ Periode updaten
@@ -503,13 +530,12 @@ export const updatePeriode = async (req, res) => {
 
     res.status(200).json({
       message: "Periode succesvol aangepast.",
-      boeking
+      boeking,
     });
-
   } catch (error) {
     console.error("Fout bij aanpassen periode:", error);
     res.status(500).json({
-      message: "Fout bij aanpassen periode."
+      message: "Fout bij aanpassen periode.",
     });
   }
 };

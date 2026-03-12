@@ -6,7 +6,7 @@ const router = express.Router();
 import auth from "../middelware/auth.js";
 
 /** Zelfde list-endpoint als live, met filters/zoek/sort/paging */
-router.get("/", auth("admin" , "purchase"), async (req, res) => {
+router.get("/", auth("admin", "purchase"), async (req, res) => {
   try {
     const {
       status,
@@ -16,7 +16,7 @@ router.get("/", auth("admin" , "purchase"), async (req, res) => {
       q,
       sort = "-createdAt",
       page = 1,
-      limit = 20
+      limit = 20,
     } = req.query;
 
     const filter = {};
@@ -42,57 +42,74 @@ router.get("/", auth("admin" , "purchase"), async (req, res) => {
     let items, total;
     try {
       [items, total] = await Promise.all([
-        ArchiveOrder.find(finalFilter).sort(sortObj).skip((pageNum - 1) * limitNum).limit(limitNum).lean(),
-        ArchiveOrder.countDocuments(finalFilter)
+        ArchiveOrder.find(finalFilter)
+          .sort(sortObj)
+          .skip((pageNum - 1) * limitNum)
+          .limit(limitNum)
+          .lean(),
+        ArchiveOrder.countDocuments(finalFilter),
       ]);
     } catch (e) {
       if (useText) {
         delete finalFilter.$text;
         finalFilter.ref = { $regex: q, $options: "i" };
         [items, total] = await Promise.all([
-          ArchiveOrder.find(finalFilter).sort(sortObj).skip((pageNum - 1) * limitNum).limit(limitNum).lean(),
-          ArchiveOrder.countDocuments(finalFilter)
+          ArchiveOrder.find(finalFilter)
+            .sort(sortObj)
+            .skip((pageNum - 1) * limitNum)
+            .limit(limitNum)
+            .lean(),
+          ArchiveOrder.countDocuments(finalFilter),
         ]);
       } else {
         throw e;
       }
     }
 
-    res.json({ items, total, page: pageNum, pages: Math.ceil(total / limitNum) });
+    res.json({
+      items,
+      total,
+      page: pageNum,
+      pages: Math.ceil(total / limitNum),
+    });
   } catch (err) {
     console.error("GET /archive-orders error", err);
     res.status(500).json({ message: "Fout bij ophalen archive orders" });
   }
 });
 
-router.get("/:id",auth("admin" , "purchase"), async (req, res) => {
+router.get("/:id", auth("admin", "purchase"), async (req, res) => {
   try {
     const item = await ArchiveOrder.findOne({ id: req.params.id }).lean();
     if (!item) return res.status(404).json({ message: "Niet gevonden" });
     res.json(item);
-  } catch (err) {
+  } catch (_err) {
     res.status(500).json({ message: "Fout bij ophalen archive order" });
   }
 });
 
-router.post("/",auth("admin" , "purchase"), async (req, res) => {
+router.post("/", auth("admin", "purchase"), async (req, res) => {
   try {
     const created = await ArchiveOrder.create(req.body);
     res.status(201).json(created);
   } catch (err) {
     if (err.code === 11000) {
-      return res.status(409).json({ message: "ID bestaat al", keyValue: err.keyValue });
+      return res
+        .status(409)
+        .json({ message: "ID bestaat al", keyValue: err.keyValue });
     }
-    res.status(400).json({ message: "Validatie of invoerfout", details: err.message });
+    res
+      .status(400)
+      .json({ message: "Validatie of invoerfout", details: err.message });
   }
 });
 
-router.patch("/:id",auth("admin" , "purchase"), async (req, res) => {
+router.patch("/:id", auth("admin", "purchase"), async (req, res) => {
   try {
     const updated = await ArchiveOrder.findOneAndUpdate(
       { id: req.params.id },
       { $set: req.body },
-      { new: true, runValidators: true }
+      { new: true, runValidators: true },
     ).lean();
 
     if (!updated) return res.status(404).json({ message: "Niet gevonden" });
@@ -102,28 +119,32 @@ router.patch("/:id",auth("admin" , "purchase"), async (req, res) => {
   }
 });
 
-router.delete("/:id",auth("admin" , "purchase"), async (req, res) => {
+router.delete("/:id", auth("admin", "purchase"), async (req, res) => {
   try {
     const result = await ArchiveOrder.deleteOne({ id: req.params.id });
     if (result.deletedCount === 0) {
       return res.status(404).json({ message: "Niet gevonden" });
     }
     res.status(204).send();
-  } catch (err) {
+  } catch (_err) {
     res.status(500).json({ message: "Verwijderen mislukt" });
   }
 });
 
 /** POST /archive-orders/:id/restore → verplaats terug naar live_orders */
-router.post("/:id/restore",auth("admin" , "purchase"), async (req, res) => {
+router.post("/:id/restore", auth("admin", "purchase"), async (req, res) => {
   try {
-    const doc = await ArchiveOrder.findOneAndDelete({ id: req.params.id }).lean();
+    const doc = await ArchiveOrder.findOneAndDelete({
+      id: req.params.id,
+    }).lean();
     if (!doc) return res.status(404).json({ message: "Niet gevonden" });
 
     const restored = await LiveOrder.create(doc);
     res.status(201).json(restored);
   } catch (err) {
-    res.status(500).json({ message: "Herstellen mislukt", details: err.message });
+    res
+      .status(500)
+      .json({ message: "Herstellen mislukt", details: err.message });
   }
 });
 

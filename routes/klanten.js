@@ -5,9 +5,7 @@ import { klantenService } from "../service/klantenService.js";
 
 const router = express.Router();
 
-/**
- * GET /
- */
+
 router.get("/", auth("admin" , "renting"), async (req, res) => {
   try {
     const items = await klantenService.getAll(req.query);
@@ -18,9 +16,6 @@ router.get("/", auth("admin" , "renting"), async (req, res) => {
   }
 });
 
-/**
- * GET /:id
- */
 router.get("/:id", auth("admin" , "renting"), async (req, res) => {
   try {
     const item = await klantenService.getById(req.params.id);
@@ -28,14 +23,11 @@ router.get("/:id", auth("admin" , "renting"), async (req, res) => {
       return res.status(404).json({ message: "Niet gevonden" });
     }
     res.json(item);
-  } catch (err) {
+    } catch (_err) {
     res.status(400).json({ message: "Ongeldig ID" });
   }
 });
 
-/**
- * POST /
- */
 router.post("/", auth("admin" , "renting"), async (req, res) => {
   try {
     const nieuw = await klantenService.create(req.body);
@@ -45,9 +37,6 @@ router.post("/", auth("admin" , "renting"), async (req, res) => {
   }
 });
 
-/**
- * PATCH /:id
- */
 router.patch("/:id", auth("admin" , "renting"), async (req, res) => {
   try {
     const updated = await klantenService.update(req.params.id, req.body);
@@ -60,9 +49,6 @@ router.patch("/:id", auth("admin" , "renting"), async (req, res) => {
   }
 });
 
-/**
- * DELETE /:id
- */
 router.delete("/:id", auth("admin" , "renting"), async (req, res) => {
   try {
     const deleted = await klantenService.delete(req.params.id);
@@ -70,20 +56,11 @@ router.delete("/:id", auth("admin" , "renting"), async (req, res) => {
       return res.status(404).json({ message: "Niet gevonden" });
     }
     res.json({ message: "Succesvol verwijderd" });
-  } catch (err) {
+    } catch (_err) {
     res.status(400).json({ message: "Fout bij verwijderen" });
   }
 });
 
-
-// ==============================
-// 🔥 NIEUWE ENDPOINTS
-// ==============================
-
-/**
- * POST /:id/leveradressen
- * Leveradres toevoegen
- */
 router.post("/:id/leveradressen", auth("admin" , "renting"), async (req, res) => {
   try {
     const updated = await klantenService.addLeverAdres(
@@ -96,16 +73,12 @@ router.post("/:id/leveradressen", auth("admin" , "renting"), async (req, res) =>
     }
 
     res.json(updated);
-  } catch (err) {
+    } catch (_err) {
     res.status(400).json({ message: "Fout bij toevoegen leveradres" });
   }
 });
 
 
-/**
- * DELETE /:id/leveradressen/:adresId
- * Leveradres verwijderen
- */
 router.delete("/:id/leveradressen/:adresId", auth("admin" , "renting"), async (req, res) => {
   try {
     const updated = await klantenService.removeLeverAdres(
@@ -118,7 +91,7 @@ router.delete("/:id/leveradressen/:adresId", auth("admin" , "renting"), async (r
     }
 
     res.json(updated);
-  } catch (err) {
+    } catch (_err) {
     res.status(400).json({ message: "Fout bij verwijderen leveradres" });
   }
 });

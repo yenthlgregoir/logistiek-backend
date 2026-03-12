@@ -2,7 +2,6 @@
 import mongoose from "mongoose";
 const adresSchema = new mongoose.Schema(
   {
-    naam: { type: String },
     straat: { type: String },
     huisnummer: { type: String },
     postcode: { type: String },
@@ -10,17 +9,25 @@ const adresSchema = new mongoose.Schema(
   },
   { _id: true },
 );
-
-const klantSchema = new mongoose.Schema({
-  naam: { type: String, required: true },
-  klantNummer: { type: String, required: true },
-  telefoonnummer: { type: String, index: true },
-  mailadres: { type: String, index: true },
-  factuurAdres: adresSchema,
-  leverAdressen: [adresSchema],
-  BTWnummer: { type: String, index: true },
+const contactPersoonSchema = new mongoose.Schema({
+  naam: { type: String },
+  mailadres: { type: String },
+  telefoonnummer: { type: String },
 });
 
-klantSchema.index({ naam: "text" });
+const leverancierSchema = new mongoose.Schema({
+  naam: { type: String, required: true },
+  telefoonnummer: { type: String, index: true },
+  mailadres: { type: String, index: true },
+  Adres: adresSchema,
+  BTWnummer: { type: String, index: true },
+  contactpersonen: [contactPersoonSchema],
+});
 
-export const Klant = mongoose.model("Klant", klantSchema, "Klanten");
+leverancierSchema.index({ naam: "text" });
+
+export const Leverancier = mongoose.model(
+  "Leverancier",
+  leverancierSchema,
+  "Leveranciers",
+);

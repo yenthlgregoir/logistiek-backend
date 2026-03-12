@@ -10,8 +10,7 @@ import mammoth from "mammoth";
 import auth from "../middelware/auth.js";
 const router = express.Router();
 
-
-router.get("/",auth("admin" , "purchase"), async (req, res) => {
+router.get("/", auth("admin", "purchase"), async (req, res) => {
   try {
     const {
       status,
@@ -21,7 +20,7 @@ router.get("/",auth("admin" , "purchase"), async (req, res) => {
       q,
       sort = "-createdAt",
       page = 1,
-      limit = 20
+      limit = 20,
     } = req.query;
 
     const filter = {};
@@ -32,7 +31,6 @@ router.get("/",auth("admin" , "purchase"), async (req, res) => {
 
     // Veilig filter-object (zonder getFilter-magic)
     const finalFilter = { ...filter };
-
 
     let useText = false;
     if (q && q.trim()) {
@@ -53,8 +51,12 @@ router.get("/",auth("admin" , "purchase"), async (req, res) => {
     let items, total;
     try {
       [items, total] = await Promise.all([
-        query.sort(sortObj).skip((pageNum - 1) * limitNum).limit(limitNum).lean(),
-        LiveOrder.countDocuments(finalFilter)
+        query
+          .sort(sortObj)
+          .skip((pageNum - 1) * limitNum)
+          .limit(limitNum)
+          .lean(),
+        LiveOrder.countDocuments(finalFilter),
       ]);
     } catch (e) {
       // Fallback naar regex (alleen als q er is en text faalt)
@@ -63,8 +65,12 @@ router.get("/",auth("admin" , "purchase"), async (req, res) => {
         finalFilter.ref = { $regex: q, $options: "i" };
 
         [items, total] = await Promise.all([
-          LiveOrder.find(finalFilter).sort(sortObj).skip((pageNum - 1) * limitNum).limit(limitNum).lean(),
-          LiveOrder.countDocuments(finalFilter)
+          LiveOrder.find(finalFilter)
+            .sort(sortObj)
+            .skip((pageNum - 1) * limitNum)
+            .limit(limitNum)
+            .lean(),
+          LiveOrder.countDocuments(finalFilter),
         ]);
       } else {
         throw e;
@@ -75,7 +81,7 @@ router.get("/",auth("admin" , "purchase"), async (req, res) => {
       items,
       total,
       page: pageNum,
-      pages: Math.ceil(total / limitNum)
+      pages: Math.ceil(total / limitNum),
     });
   } catch (err) {
     console.error("GET /live-orders error", err);
@@ -87,8 +93,7 @@ router.get("/",auth("admin" , "purchase"), async (req, res) => {
 /** GET /live-orders/:id */
 router.get("/:id", async (req, res) => {
   try {
-    const item = await LiveOrder
-      .findById(req.params.id)
+    const item = await LiveOrder.findById(req.params.id)
       .populate("producten.product", "productcode omschrijving eenheidsprijs")
       .lean();
 
@@ -103,24 +108,27 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-
 /** POST /live-orders  (nieuw item) */
-router.post("/",auth("admin" , "purchase"), async (req, res) => {
+router.post("/", auth("admin", "purchase"), async (req, res) => {
   try {
     const created = await LiveOrder.create(req.body);
     res.status(201).json(created);
   } catch (err) {
     // Duplicate key (bv. id al in gebruik)
     if (err.code === 11000) {
-      return res.status(409).json({ message: "ID bestaat al", keyValue: err.keyValue });
+      return res
+        .status(409)
+        .json({ message: "ID bestaat al", keyValue: err.keyValue });
     }
     console.error("POST /live-orders error", err);
-    res.status(400).json({ message: "Validatie of invoerfout", details: err.message });
+    res
+      .status(400)
+      .json({ message: "Validatie of invoerfout", details: err.message });
   }
 });
 
 /** PATCH /live-orders/:id  (partiële update) */
-router.patch("/:id",auth("admin" , "purchase"), async (req, res) => {
+router.patch("/:id", auth("admin", "purchase"), async (req, res) => {
   try {
     const order = await LiveOrder.findById(req.params.id);
 
@@ -141,17 +149,15 @@ router.patch("/:id",auth("admin" , "purchase"), async (req, res) => {
   }
 });
 
-
-
 /** DELETE /live-orders/:id */
-router.delete("/:id",auth("admin" , "purchase"), async (req, res) => {
+router.delete("/:id", auth("admin", "purchase"), async (req, res) => {
   try {
     const result = await LiveOrder.deleteOne({ _id: req.params.id });
     if (result.deletedCount === 0) {
       return res.status(404).json({ message: "Niet gevonden" });
     }
     res.status(204).send();
-  } catch (err) {
+  } catch (_err) {
     res.status(500).json({ message: "Verwijderen mislukt" });
   }
 });
@@ -160,7 +166,7 @@ router.delete("/:id",auth("admin" , "purchase"), async (req, res) => {
  * POST /live-orders/:id/archive
  * Verplaats item van live_orders → archive_orders
  */
-router.post("/:id/archive",auth("admin" , "purchase"), async (req, res) => {
+router.post("/:id/archive", auth("admin", "purchase"), async (req, res) => {
   try {
     // 1) Haal het item uit live
     const doc = await LiveOrder.findOneAndDelete({ _id: req.params.id }).lean();
@@ -171,11 +177,13 @@ router.post("/:id/archive",auth("admin" , "purchase"), async (req, res) => {
     res.status(201).json(archived);
   } catch (err) {
     // Als archiveren faalt, zou je het doc terug kunnen zetten in live (complexer).
-    res.status(500).json({ message: "Archiveren mislukt", details: err.message });
+    res
+      .status(500)
+      .json({ message: "Archiveren mislukt", details: err.message });
   }
 });
 
-router.post("/:id/product",auth("admin" , "purchase"), async (req, res) => {
+router.post("/:id/product", auth("admin", "purchase"), async (req, res) => {
   try {
     const { id } = req.params;
     const { productId, aantal } = req.body;
@@ -186,11 +194,11 @@ router.post("/:id/product",auth("admin" , "purchase"), async (req, res) => {
         $push: {
           producten: {
             product: productId,
-            aantal: aantal
-          }
-        }
+            aantal: aantal,
+          },
+        },
       },
-      { new: true }
+      { new: true },
     );
 
     res.json(updatedOrder);
@@ -199,13 +207,11 @@ router.post("/:id/product",auth("admin" , "purchase"), async (req, res) => {
   }
 });
 
-
-
-router.get("/:id/pdf", auth("admin" , "purchase"),async (req, res) => {
+router.get("/:id/pdf", auth("admin", "purchase"), async (req, res) => {
   try {
-    const order = await LiveOrder
-      .findById(req.params.id)
-      .populate("producten.product");
+    const order = await LiveOrder.findById(req.params.id).populate(
+      "producten.product",
+    );
 
     if (!order) {
       return res.status(404).json({ message: "Order niet gevonden" });
@@ -218,37 +224,40 @@ router.get("/:id/pdf", auth("admin" , "purchase"),async (req, res) => {
     const zip = new PizZip(content);
 
     const doc = new Docxtemplater(zip, {
-      delimiters: { start: '[[', end: ']]' },
-      nullGetter: () => ''
+      delimiters: { start: "[[", end: "]]" },
+      nullGetter: () => "",
     });
 
     // 2️⃣ Bereken producten & totalen
-    const producten = (order.producten || []).map(p => {
+    const producten = (order.producten || []).map((p) => {
       const eenheidsprijs = Number(p?.product?.eenheidsprijs) || 0;
       const aantal = Number(p?.aantal) || 0;
       const lijnTotaal = aantal * eenheidsprijs;
 
       return {
-        productcode: p?.product?.productcode ?? '',
-        omschrijving: p?.product?.omschrijving ?? '',
+        productcode: p?.product?.productcode ?? "",
+        omschrijving: p?.product?.omschrijving ?? "",
         aantal,
         prijs: eenheidsprijs.toFixed(2),
-        lijnTotaal: lijnTotaal.toFixed(2)
+        lijnTotaal: lijnTotaal.toFixed(2),
       };
     });
 
-    const totaalExclNum = producten.reduce((sum, p) => sum + Number(p.lijnTotaal), 0);
+    const totaalExclNum = producten.reduce(
+      (sum, p) => sum + Number(p.lijnTotaal),
+      0,
+    );
     const btwNum = +(totaalExclNum * 0.21).toFixed(2);
     const totaalInclNum = +(totaalExclNum + btwNum).toFixed(2);
 
     // 3️⃣ Nieuwe API — doc.render(data)
     doc.render({
-      ref: order.ref ?? '',
-      leverancier: order.leverancier ?? '',
+      ref: order.ref ?? "",
+      leverancier: order.leverancier ?? "",
       producten,
       totaalExcl: totaalExclNum.toFixed(2),
       btw: btwNum.toFixed(2),
-      totaalIncl: totaalInclNum.toFixed(2)
+      totaalIncl: totaalInclNum.toFixed(2),
     });
 
     // 4️⃣ Genereer DOCX buffer
@@ -273,7 +282,7 @@ router.get("/:id/pdf", auth("admin" , "purchase"),async (req, res) => {
     // 6️⃣ HTML → PDF met Puppeteer
     const browser = await puppeteer.launch({
       headless: true,
-      args: ["--no-sandbox"]
+      args: ["--no-sandbox"],
     });
 
     const page = await browser.newPage();
@@ -281,16 +290,18 @@ router.get("/:id/pdf", auth("admin" , "purchase"),async (req, res) => {
 
     const pdfBuffer = await page.pdf({
       format: "A4",
-      printBackground: true
+      printBackground: true,
     });
 
     await browser.close();
 
     // 7️⃣ Verstuur PDF
     res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", `inline; filename=bestelling_${order.ref}.pdf`);
+    res.setHeader(
+      "Content-Disposition",
+      `inline; filename=bestelling_${order.ref}.pdf`,
+    );
     res.send(pdfBuffer);
-
   } catch (err) {
     console.error("PDF generatie fout:", err);
     res.status(500).json({ message: "Fout bij genereren PDF" });

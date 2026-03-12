@@ -8,7 +8,7 @@ export const generateBoekingPDF = (res, boeking) => {
   });
 
   res.setHeader("Content-Type","application/pdf");
-  res.setHeader("Content-Disposition","attachment; filename=boeking.pdf");
+  res.setHeader("Content-Disposition",`attachment; filename=${boeking.klant?.naam}.pdf`);
 
   doc.pipe(res);
 
@@ -28,7 +28,7 @@ export const generateBoekingPDF = (res, boeking) => {
     .fillColor("#0b3558")
     .fontSize(16)
     .text(
-      `REF: ${boeking.ref} / ${boeking.klant?.naam || ""}`,
+      `REF: ${boeking.ref} / Klantnummer:${boeking.klant?.klantNummer || ""}`,
       55,
       refY + 15
     );
@@ -43,9 +43,7 @@ export const generateBoekingPDF = (res, boeking) => {
     );
 
   /* ADRES BLOKKEN */
-
   const yStart = 180;
-
   const lever = boeking.leverAdresDetails || {};
   const factuur = boeking.klant?.factuurAdres || {};
 
@@ -78,14 +76,16 @@ export const generateBoekingPDF = (res, boeking) => {
   doc.fillColor("#fff")
     .fontSize(11)
     .text("Type",50,tableTop+7)
+    .text("Volgnummer",250, tableTop+7)
     .text("Aantal",350,tableTop+7,{width:60,align:"center"})
-    .text("Levering",440,tableTop+7);
+    .text("Transport",440,tableTop+7);
 
   const rowY = tableTop + 25;
 
   doc.fillColor("#000")
     .fontSize(11)
     .text(boeking.toestelType?.naam || "-",50,rowY+8)
+    .text(boeking.toestel.Ref ,250,rowY+8)
     .text("1,00",350,rowY+8,{width:60,align:"center"})
     .text(boeking.type || "-",440,rowY+8);
 
