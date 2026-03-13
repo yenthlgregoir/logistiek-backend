@@ -13,10 +13,10 @@ import {
 import auth from "../middelware/auth.js";
 const router = express.Router();
 
-// POST /api/boekingen
 router.get("/", auth("admin", "renting"), async (req, res) => {
   try {
-    const boekingen = await getBoekingen();
+    const { search, startDatum, eindDatum, archief } = req.query;
+    const boekingen = await getBoekingen({ search, startDatum, eindDatum, archief });
     res.status(200).json(boekingen);
   } catch (error) {
     res.status(400).json({

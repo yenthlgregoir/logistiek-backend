@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 import { User } from "../models/User.js";
 import auth from "../middelware/auth.js";
+import * as userService from "../service/userService.js"
 import { sendInviteEmail } from "../service/mailService.js";
 const { randomBytes } = await import("node:crypto");
 
@@ -31,11 +32,22 @@ router.post("/login", async (req, res) => {
   res.json({ token });
 });
 
+router.get("/users" , auth("admin") , async(req,res) => {
+  try{
+      const users = await userService.getUsers();
+      res.json(users);
+  }
+  catch(err){
+    console.log(err);
+    res.status(500).json({message: err})
+  }
+});
+
 router.post("/create-user", auth("admin"), async (req, res) => {
   const { email, role } = req.body;
 
   const token = randomBytes(32).toString("hex");
-  const tempPassword = randomBytes(6).toString("hex"); // 6 bytes = 12 hex tekens
+  const tempPassword = randomBytes(6).toString("hex"); 
   const hashedPassword = await bcrypt.hash(tempPassword, 10);
 
   const user = new User({

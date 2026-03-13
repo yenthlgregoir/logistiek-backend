@@ -49,7 +49,7 @@ const boekingSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ["Aangevraagd", "Bevestigd", "Opgehaald", "Leveren", "Geleverd"],
+      enum: ["Aangevraagd", "Bevestigd", "Opgehaald", "Leveren", "Geleverd" , "Afgewerkt"],
       default: "Aangevraagd",
       index: true,
     },

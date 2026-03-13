@@ -4,9 +4,55 @@ import { ToestelType } from "../models/toestelType.js";
 import { Klant } from "../models/klant.js";
 import mongoose from "mongoose";
 
-export const getBoekingen = async (req, res) => {
+export const getBoekingen = async ({ search, startDatum, eindDatum, archief }) => {
   try {
-    const boekingen = await Boeking.find()
+    const vandaag = new Date();
+    vandaag.setHours(0, 0, 0, 0);
+    let filter = {};
+    // 🔹 Archief filter
+    if (archief === "true") {
+      filter.eindDatum = { $lt: vandaag }; 
+    } else if (archief === "false") {
+      filter.eindDatum = { $gte: vandaag };
+    }
+
+    // 🔹 Date range filter
+    if (startDatum !== 'null' && eindDatum !== 'null') { 
+      filter.beginDatum = {}; 
+      if (startDatum) filter.beginDatum.$gte = new Date(startDatum); 
+      if (eindDatum) filter.beginDatum.$lte = new Date(eindDatum); 
+    }
+
+    // 🔹 Tekst search (in ref, toestel.Ref, klant naam)
+    if (search) {
+  const regex = new RegExp(search, "i");
+
+  // 🔹 Zoek toestellen die matchen
+  const toestellen = await Toestel.find({ Ref: regex }).select("_id");
+
+  // 🔹 Zoek boekingen waarvan klant leveradressen matchen
+  const klantenMetLeveradres = await Klant.find({
+    "leverAdressen.naam": regex
+  })
+  // Verzamel alle leveradres IDs die matchen
+  const matchingLeverAdresIds = [];
+  klantenMetLeveradres.forEach(k => {
+    k.leverAdressen.forEach(a => {
+      if (regex.test(a.naam)) {
+        matchingLeverAdresIds.push(a._id);
+      }
+    });
+  });
+
+  // 🔹 Filter de boekingen
+  filter.$or = [
+    { ref: regex },                                      // boeking ref
+    { toestel: { $in: toestellen.map(t => t._id) } },   // toestel ref
+    { leverAdres: { $in: matchingLeverAdresIds } },     // leveradres naam
+  ];
+}
+
+    const boekingen = await Boeking.find(filter)
       .populate({
         path: "toestel",
         select: "naam Ref type",
@@ -26,37 +72,32 @@ export const getBoekingen = async (req, res) => {
       })
       .sort({ beginDatum: 1 })
       .lean();
-
-    // 🔎 Leveradres correct toevoegen
+    // 🔹 Voeg leveradres details & geformatteerde datums toe
     for (const boeking of boekingen) {
       if (boeking.klant && boeking.leverAdres) {
         const gevondenAdres = boeking.klant.leverAdressen?.find(
           (adres) => adres._id.toString() === boeking.leverAdres.toString(),
         );
-
         boeking.leverAdresDetails = gevondenAdres || null;
-
-        // Datum formatting
-        if (boeking.beginDatum) {
-          boeking.beginDatumFormatted = new Date(
-            boeking.beginDatum,
-          ).toLocaleDateString("nl-BE");
-        }
-
-        if (boeking.eindDatum) {
-          boeking.eindDatumFormatted = new Date(
-            boeking.eindDatum,
-          ).toLocaleDateString("nl-BE");
-        }
       } else {
         boeking.leverAdresDetails = null;
       }
-    }
 
+      if (boeking.beginDatum) {
+        boeking.beginDatumFormatted = new Date(
+          boeking.beginDatum
+        ).toLocaleDateString("nl-BE");
+      }
+      if (boeking.eindDatum) {
+        boeking.eindDatumFormatted = new Date(
+          boeking.eindDatum
+        ).toLocaleDateString("nl-BE");
+      }
+    }
     return boekingen;
   } catch (error) {
     console.error("Fout bij ophalen boekingen:", error);
-    res.status(500).json({ message: "Fout bij ophalen boekingen" });
+    throw new Error("Fout bij ophalen boekingen");
   }
 };
 export const createBoeking = async (data) => {
@@ -215,6 +256,9 @@ export const changeStatus = async (req, res) => {
     boeking.status = status;
     boeking.updatedAt = new Date();
 
+    if (boeking.status === "Afgewerkt") {
+    boeking.eindDatum = new Date();
+}
     await boeking.save();
 
     res.status(200).json({
