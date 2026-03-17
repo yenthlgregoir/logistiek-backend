@@ -23,18 +23,14 @@ export const getBoekingen = async ({ search, startDatum, eindDatum, archief }) =
       if (eindDatum) filter.beginDatum.$lte = new Date(eindDatum); 
     }
 
-    // 🔹 Tekst search (in ref, toestel.Ref, klant naam)
     if (search) {
   const regex = new RegExp(search, "i");
 
-  // 🔹 Zoek toestellen die matchen
   const toestellen = await Toestel.find({ Ref: regex }).select("_id");
 
-  // 🔹 Zoek boekingen waarvan klant leveradressen matchen
   const klantenMetLeveradres = await Klant.find({
     "leverAdressen.naam": regex
   })
-  // Verzamel alle leveradres IDs die matchen
   const matchingLeverAdresIds = [];
   klantenMetLeveradres.forEach(k => {
     k.leverAdressen.forEach(a => {
@@ -44,11 +40,10 @@ export const getBoekingen = async ({ search, startDatum, eindDatum, archief }) =
     });
   });
 
-  // 🔹 Filter de boekingen
   filter.$or = [
-    { ref: regex },                                      // boeking ref
-    { toestel: { $in: toestellen.map(t => t._id) } },   // toestel ref
-    { leverAdres: { $in: matchingLeverAdresIds } },     // leveradres naam
+    { ref: regex },                                     
+    { toestel: { $in: toestellen.map(t => t._id) } },   
+    { leverAdres: { $in: matchingLeverAdresIds } },     
   ];
 }
 
@@ -72,7 +67,6 @@ export const getBoekingen = async ({ search, startDatum, eindDatum, archief }) =
       })
       .sort({ beginDatum: 1 })
       .lean();
-    // 🔹 Voeg leveradres details & geformatteerde datums toe
     for (const boeking of boekingen) {
       if (boeking.klant && boeking.leverAdres) {
         const gevondenAdres = boeking.klant.leverAdressen?.find(
@@ -204,21 +198,18 @@ export const getBoekingById = async (id) => {
 
     let adres = null;
 
-    // 1️⃣ Leveradres zoeken
     if (boeking.klant && boeking.leverAdres) {
       adres = boeking.klant.leverAdressen.find(
         (a) => a._id.toString() === boeking.leverAdres.toString(),
       );
     }
 
-    // 2️⃣ Fallback naar factuuradres
     if (!adres && boeking.klant?.factuurAdres) {
       adres = boeking.klant.factuurAdres;
     }
 
     boeking.leverAdresDetails = adres;
 
-    // Datum formatting
     if (boeking.beginDatum) {
       boeking.beginDatumFormatted = new Date(
         boeking.beginDatum,
@@ -237,7 +228,6 @@ export const getBoekingById = async (id) => {
     throw error;
   }
 };
-
 export const changeStatus = async (req, res) => {
   try {
     const { id } = req.params;
@@ -280,8 +270,6 @@ export const changeStatus = async (req, res) => {
     res.status(500).json({ message: "Fout bij wijzigen status." });
   }
 };
-
-
 export const getVrijeToestellen = async (req, res) => {
   try {
     const { beginDatum, eindDatum, toestelType , klant } = req.query;
@@ -402,7 +390,6 @@ export const assignToestel = async (req, res) => {
     res.status(500).json({ message: "Fout bij toewijzen toestel." });
   }
 };
-
 export const boekingVerwijderen = async (req, res) => {
   try {
     const { id } = req.params;
@@ -491,7 +478,6 @@ export const updateBoeking = async (req, res) => {
     res.status(500).json({ message: "Fout bij bijwerken boeking." });
   }
 };
-
 export const updatePeriode = async (req, res) => {
   try {
     const { boekingId, beginDatum, eindDatum } = req.body;
