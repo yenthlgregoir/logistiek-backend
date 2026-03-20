@@ -8,7 +8,7 @@ export const generateBoekingPDF = (res, boeking) => {
   });
 
   res.setHeader("Content-Type","application/pdf");
-  res.setHeader("Content-Disposition",`attachment; filename=${boeking.klant?.naam}.pdf`);
+  res.setHeader("Content-Disposition",`attachment; filename=${boeking.klant?.naam || "boeking"}.pdf`);
 
   doc.pipe(res);
 
@@ -18,78 +18,126 @@ export const generateBoekingPDF = (res, boeking) => {
     width: 120
   });
 
-  /* REF BLOCK */
+  /* ============================= */
+  /* REF BLOCK (DYNAMISCH) */
+  /* ============================= */
 
   const refY = 110;
 
-  doc.rect(40, refY, 515, 60).fill("#e6f0fb");
+  const refText = `REF: ${boeking.ref} / Klantnummer:${boeking.klant?.klantNummer || ""}`;
+  const periodeText = `${boeking.beginDatumFormatted} - ${boeking.eindDatumFormatted}`;
+
+  const textWidth = 490;
+  const padding = 15;
+
+  doc.fontSize(16);
+  const refHeight = doc.heightOfString(refText, { width: textWidth });
+
+  doc.fontSize(11);
+  const periodeHeight = doc.heightOfString(periodeText, { width: textWidth });
+
+  const blockHeight = refHeight + periodeHeight + (padding * 2);
+
+  doc.rect(40, refY, 515, blockHeight).fill("#e6f0fb");
 
   doc
     .fillColor("#0b3558")
     .fontSize(16)
-    .text(
-      `REF: ${boeking.ref} / Klantnummer:${boeking.klant?.klantNummer || ""}`,
-      55,
-      refY + 15
-    );
+    .text(refText, 55, refY + padding, {
+      width: textWidth
+    });
 
   doc
     .fontSize(11)
     .fillColor("#374151")
-    .text(
-      `${boeking.beginDatumFormatted} - ${boeking.eindDatumFormatted}`,
-      55,
-      refY + 35
-    );
+    .text(periodeText, 55, refY + padding + refHeight, {
+      width: textWidth
+    });
 
-  /* ADRES BLOKKEN */
-  const yStart = 180;
+  /* ============================= */
+  /* ADRES BLOKKEN (DYNAMISCH) */
+  /* ============================= */
+
+  const yStart = refY + blockHeight + 20;
+
   const lever = boeking.leverAdresDetails || {};
   const factuur = boeking.klant?.factuurAdres || {};
 
-  doc.rect(40,yStart,250,90).stroke("#e2e8f0");
+  const leftX = 50;
+  const rightX = 315;
+  const boxWidth = 250;
+  const innerPadding = 10;
+  const addrTextWidth = boxWidth - 20;
 
+  // Leveringsadres
+  const leverText = [
+    lever.naam,
+    `${lever.straat || "-"} ${lever.huisnummer || ""}`,
+    `${lever.postcode || "-"} ${lever.gemeente || ""}`
+  ].filter(Boolean).join("\n");
+
+  doc.fontSize(11);
+  const leverHeight = doc.heightOfString(leverText, { width: addrTextWidth });
+
+  // Factuuradres
+  const factuurText = [
+    boeking.klant?.naam,
+    `${factuur.straat || "-"} ${factuur.huisnummer || ""}`,
+    `${factuur.postcode || "-"} ${factuur.gemeente || ""}`
+  ].filter(Boolean).join("\n");
+
+  const factuurHeight = doc.heightOfString(factuurText, { width: addrTextWidth });
+
+  const titleHeight = 20;
+  const boxHeight = Math.max(leverHeight, factuurHeight) + titleHeight + (innerPadding * 2);
+
+  // Boxen
+  doc.rect(40, yStart, boxWidth, boxHeight).stroke("#e2e8f0");
+  doc.rect(305, yStart, boxWidth, boxHeight).stroke("#e2e8f0");
+
+  // Titels
   doc.fontSize(12).fillColor("#0b3558")
-    .text("Leveringsadres:",50,yStart+10);
+    .text("Leveringsadres:", leftX, yStart + innerPadding);
 
+  doc.text("Factuuradres:", rightX, yStart + innerPadding);
+
+  // Tekst
   doc.fontSize(11).fillColor("#000")
-    .text(lever.naam || "-",50,yStart+30)
-    .text(`${lever.straat || "-"} ${lever.huisnummer || ""}`,50,yStart+45)
-    .text(`${lever.postcode || "-"} ${lever.gemeente || ""}`,50,yStart+60);
+    .text(leverText || "-", leftX, yStart + innerPadding + titleHeight, {
+      width: addrTextWidth
+    });
 
-  doc.rect(305,yStart,250,90).stroke("#e2e8f0");
+  doc.text(factuurText || "-", rightX, yStart + innerPadding + titleHeight, {
+    width: addrTextWidth
+  });
 
-  doc.fontSize(12).fillColor("#0b3558")
-    .text("Factuuradres:",315,yStart+10);
-
-  doc.fontSize(11).fillColor("#000")
-    .text(boeking.klant?.naam || "-",315,yStart+30)
-    .text(`${factuur.straat || "-"} ${factuur.huisnummer || ""}`,315,yStart+45)
-    .text(`${factuur.postcode || "-"} ${factuur.gemeente || ""}`,315,yStart+60);
-
+  /* ============================= */
   /* TABEL */
+  /* ============================= */
 
-  const tableTop = 300;
+  const tableTop = yStart + boxHeight + 20;
 
-  doc.rect(40,tableTop,515,25).fill("#0284c7");
+  doc.rect(40, tableTop, 515, 25).fill("#0284c7");
 
   doc.fillColor("#fff")
     .fontSize(11)
-    .text("Type",50,tableTop+7)
-    .text("Volgnummer",250, tableTop+7)
-    .text("Aantal",350,tableTop+7,{width:60,align:"center"})
-    .text("Transport",440,tableTop+7);
+    .text("Type", 50, tableTop + 7)
+    .text("Volgnummer", 250, tableTop + 7)
+    .text("Aantal", 350, tableTop + 7, { width: 60, align: "center" })
+    .text("Transport", 440, tableTop + 7);
 
   const rowY = tableTop + 25;
 
   doc.fillColor("#000")
     .fontSize(11)
-    .text(boeking.toestelType?.naam || "-",50,rowY+8)
-    .text(boeking.toestel.Ref ,250,rowY+8)
-    .text("1,00",350,rowY+8,{width:60,align:"center"})
-    .text(boeking.type || "-",440,rowY+8);
+    .text(boeking.toestelType?.naam || "-", 50, rowY + 8)
+    .text(boeking.toestel?.Ref || "-", 250, rowY + 8)
+    .text("1,00", 350, rowY + 8, { width: 60, align: "center" })
+    .text(boeking.type || "-", 440, rowY + 8);
 
+  /* ============================= */
   /* OPMERKING */
+  /* ============================= */
 
   if (boeking.comment && boeking.comment.trim() !== "") {
 
@@ -107,10 +155,11 @@ export const generateBoekingPDF = (res, boeking) => {
       .text(boeking.comment, {
         width: 515
       });
-
   }
 
+  /* ============================= */
   /* FOOTER */
+  /* ============================= */
 
   const footerY = doc.page.height - 75;
 
