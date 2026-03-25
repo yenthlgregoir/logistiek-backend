@@ -1,13 +1,16 @@
 import mongoose from "mongoose";
 import { Toestel } from "./toestel.model.js";
 import { ToestelType } from "./toestelType.model.js";
+import { Boeking } from "../boekingen/boeking.model.js";
+
 
 
 export const getToestellen = async (filter = {}, sort = { createdAt: -1 }) => {
 
   const cleanFilter = Object.fromEntries(
-    Object.entries(filter).filter(([, v]) => v != null && v !== '' && v!== 'undefined')
+    Object.entries(filter).filter(([, v]) => v != null && v !== '' && v !== 'undefined')
   );
+
   const toestellen = await Toestel.find(cleanFilter)
     .sort(sort)
     .populate("type", "naam")
@@ -16,7 +19,51 @@ export const getToestellen = async (filter = {}, sort = { createdAt: -1 }) => {
       select: "naam",
     })
     .lean();
-  return toestellen.sort((a, b) => {
+
+  const vandaag = new Date();
+  vandaag.setHours(0, 0, 0, 0);
+
+  const actieveBoekingen = await Boeking.find({
+  toestel: { $ne: null },
+  beginDatum: { $lte: vandaag },
+  eindDatum: { $gte: vandaag },
+})
+.populate({
+  path: "klant",
+  select: "leverAdressen",
+})
+.select("toestel leverAdres klant")
+.lean();
+
+const toestelMap = {};
+
+actieveBoekingen.forEach(b => {
+  if (!b.toestel) return;
+
+  let adres = null;
+
+  if (b.klant && b.leverAdres) {
+    adres = b.klant.leverAdressen?.find(
+      a => a._id.toString() === b.leverAdres.toString()
+    );
+  }
+
+  toestelMap[b.toestel.toString()] = adres || null;
+});
+
+
+
+  // 🔹 gnw toevoegen
+  const enriched = toestellen.map(t => {
+  const adres = toestelMap[t._id.toString()];
+
+  return {
+    ...t,
+    gnw: adres ? adres : "vrij"
+  };
+});
+
+  return enriched.sort((a, b) => {
     const aIsNumeric = /^[0-9]+$/.test(a.Ref);
     const bIsNumeric = /^[0-9]+$/.test(b.Ref);
 
@@ -55,7 +102,6 @@ export const createToestel = async (data) => {
     type: typeId,
   });
 };
-
 export const updateToestel = async (id, data) => {
   try {
     const updates = { ...data };
