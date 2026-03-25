@@ -1,4 +1,4 @@
-import {Schaarlift} from './Schaarlift.model.js'
+import {Schaarlift} from './schaarlift.model.js'
 import {MachineType} from './type.model.js'
 
 
