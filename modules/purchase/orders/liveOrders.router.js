@@ -1,13 +1,13 @@
 // routes/liveOrders.js
 import express from "express";
-import { LiveOrder, ArchiveOrder } from "../models/Order.js";
+import { LiveOrder, ArchiveOrder } from "./order.model.js";
 import fs from "fs";
 import path from "path";
 import PizZip from "pizzip";
 import Docxtemplater from "docxtemplater";
 import puppeteer from "puppeteer";
 import mammoth from "mammoth";
-import auth from "../middelware/auth.js";
+import auth from "../../../middelware/auth.js";
 const router = express.Router();
 
 router.get("/", auth("admin", "purchase"), async (req, res) => {

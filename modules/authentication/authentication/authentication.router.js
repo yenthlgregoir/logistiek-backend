@@ -1,8 +1,8 @@
 // routes/auth.js
 import express from "express";
-import auth from "../middelware/auth.js";
-import * as authService from "../service/authService.js";
-import * as userService from "../service/userService.js";
+import auth from "../../../middelware/auth.js";
+import * as authService from "./authentication.service.js";
+import * as userService from "../users/user.service.js";
 
 const router = express.Router();
 

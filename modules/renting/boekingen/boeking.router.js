@@ -9,8 +9,8 @@ import {
   boekingVerwijderen,
   updateBoeking,
   updatePeriode,
-} from "../service/boekingService.js";
-import auth from "../middelware/auth.js";
+} from "./boeking.service.js";
+import auth from "../../../middelware/auth.js";
 const router = express.Router();
 
 router.get("/", auth("admin", "renting"), async (req, res) => {

@@ -1,7 +1,7 @@
-import { Boeking } from "../models/boeking.js";
-import { Toestel } from "../models/toestel.js";
-import { ToestelType } from "../models/toestelType.js";
-import { Klant } from "../models/klant.js";
+import { Boeking } from "./boeking.model.js";
+import { Toestel } from "../toestellen/toestel.model.js";
+import { ToestelType } from "../toestellen/toestelType.model.js";
+import { Klant } from "../klanten/klant.model.js";
 import mongoose from "mongoose";
 
 export const getBoekingen = async ({ search, startDatum, eindDatum, archief }) => {
@@ -90,8 +90,7 @@ export const getBoekingen = async ({ search, startDatum, eindDatum, archief }) =
     }
     return boekingen;
   } catch (error) {
-    console.error("Fout bij ophalen boekingen:", error);
-    throw new Error("Fout bij ophalen boekingen");
+    throw new Error("Fout bij ophalen boekingen:", error);
   }
 };
 export const createBoeking = async (data) => {
@@ -120,9 +119,9 @@ export const createBoeking = async (data) => {
   // 3️⃣ Tel actieve toestellen van dit type
   const totaalAantal = await Toestel.countDocuments({
     type: typeId,
-    "status.statusType": "Actief", // ✅ alleen actieve toestellen
+    "status.statusType": "Actief",
   });
-
+ 
   if (totaalAantal === 0) {
     throw new Error("Er bestaan geen actieve toestellen van dit type.");
   }
@@ -333,8 +332,7 @@ export const getVrijeToestellen = async (req, res) => {
 
     return toestellen;
   } catch (error) {
-    console.error("Fout bij ophalen vrije toestellen:", error);
-    throw new Error("kapot")
+    throw new Error("Fout bij ophalen vrije toestellen:", error)
   }
 };
 export const assignToestel = async (req, res) => {
@@ -385,8 +383,7 @@ export const assignToestel = async (req, res) => {
     await boeking.save();
 
     res.status(200).json({ message: "Toestel succesvol toegewezen.", boeking });
-  } catch (error) {
-    console.error("Fout bij toewijzen toestel:", error);
+  } catch  {
     res.status(500).json({ message: "Fout bij toewijzen toestel." });
   }
 };
@@ -562,8 +559,7 @@ export const updatePeriode = async (req, res) => {
       message: "Periode succesvol aangepast.",
       boeking,
     });
-  } catch (error) {
-    console.error("Fout bij aanpassen periode:", error);
+  } catch  {
     res.status(500).json({
       message: "Fout bij aanpassen periode.",
     });

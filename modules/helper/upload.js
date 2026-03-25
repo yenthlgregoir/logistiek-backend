@@ -1,12 +1,12 @@
 import express from "express";
 import fs from "fs-extra";
 import path from "path";
-import { upload } from "../models/multer.js";
+import { upload } from "./multer.js";
 import mime from "mime-types";
-import auth from "../middelware/auth.js";
-import * as boekingService from "../service/boekingService.js";
+import auth from "../../middelware/auth.js";
+import * as boekingService from "../renting/boekingen/boeking.service.js";
 import PDFDocument from "pdfkit";
-import * as pdfService from "../service/pdfService.js";
+import * as pdfService from "./pdfService.js";
 
 const router = express.Router();
 

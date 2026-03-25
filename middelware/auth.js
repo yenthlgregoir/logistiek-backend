@@ -22,7 +22,7 @@ const auth = (...roles) => {
       }
 
       next();
-    } catch (_err) {
+    } catch {
       return res.status(401).json({ message: "Ongeldige token" });
     }
   };

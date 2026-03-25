@@ -1,9 +1,9 @@
 // routes/archiveOrders.js
 import express from "express";
-import { ArchiveOrder, LiveOrder } from "../models/Order.js";
+import { ArchiveOrder, LiveOrder } from "./order.model.js";
 
 const router = express.Router();
-import auth from "../middelware/auth.js";
+import auth from "../../../middelware/auth.js";
 
 /** Zelfde list-endpoint als live, met filters/zoek/sort/paging */
 router.get("/", auth("admin", "purchase"), async (req, res) => {
@@ -83,7 +83,7 @@ router.get("/:id", auth("admin", "purchase"), async (req, res) => {
     const item = await ArchiveOrder.findOne({ id: req.params.id }).lean();
     if (!item) return res.status(404).json({ message: "Niet gevonden" });
     res.json(item);
-  } catch (_err) {
+  } catch {
     res.status(500).json({ message: "Fout bij ophalen archive order" });
   }
 });
@@ -126,7 +126,7 @@ router.delete("/:id", auth("admin", "purchase"), async (req, res) => {
       return res.status(404).json({ message: "Niet gevonden" });
     }
     res.status(204).send();
-  } catch (_err) {
+  } catch  {
     res.status(500).json({ message: "Verwijderen mislukt" });
   }
 });

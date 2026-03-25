@@ -1,14 +1,13 @@
 import mongoose from "mongoose";
-import { Toestel } from "../models/toestel.js";
-import { ToestelType } from "../models/toestelType.js";
+import { Toestel } from "./toestel.model.js";
+import { ToestelType } from "./toestelType.model.js";
 
 
 export const getToestellen = async (filter = {}, sort = { createdAt: -1 }) => {
-  // filter undefined of lege waarden
+
   const cleanFilter = Object.fromEntries(
-    Object.entries(filter).filter(([_, v]) => v != null && v !== '' && v!== 'undefined')
+    Object.entries(filter).filter(([, v]) => v != null && v !== '' && v!== 'undefined')
   );
-  console.log(cleanFilter);
   const toestellen = await Toestel.find(cleanFilter)
     .sort(sort)
     .populate("type", "naam")

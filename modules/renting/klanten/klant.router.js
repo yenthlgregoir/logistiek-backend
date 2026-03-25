@@ -1,7 +1,7 @@
 // routes/klanten.js
 import express from "express";
-import auth from "../middelware/auth.js";
-import { klantenService } from "../service/klantenService.js";
+import auth from "../../../middelware/auth.js";
+import {klantenService} from "./klant.service.js"
 
 const router = express.Router();
 
@@ -10,8 +10,7 @@ router.get("/", auth("admin" , "renting"), async (req, res) => {
   try {
     const items = await klantenService.getAll(req.query);
     res.json({ items });
-  } catch (err) {
-    console.error(err);
+  } catch  {
     res.status(500).json({ message: "Fout bij ophalen klanten" });
   }
 });
@@ -23,7 +22,7 @@ router.get("/:id", auth("admin" , "renting"), async (req, res) => {
       return res.status(404).json({ message: "Niet gevonden" });
     }
     res.json(item);
-    } catch (_err) {
+    } catch  {
     res.status(400).json({ message: "Ongeldig ID" });
   }
 });
@@ -56,7 +55,7 @@ router.delete("/:id", auth("admin" , "renting"), async (req, res) => {
       return res.status(404).json({ message: "Niet gevonden" });
     }
     res.json({ message: "Succesvol verwijderd" });
-    } catch (_err) {
+    } catch  {
     res.status(400).json({ message: "Fout bij verwijderen" });
   }
 });
@@ -73,7 +72,7 @@ router.post("/:id/leveradressen", auth("admin" , "renting"), async (req, res) =>
     }
 
     res.json(updated);
-    } catch (_err) {
+    } catch  {
     res.status(400).json({ message: "Fout bij toevoegen leveradres" });
   }
 });
@@ -91,7 +90,7 @@ router.delete("/:id/leveradressen/:adresId", auth("admin" , "renting"), async (r
     }
 
     res.json(updated);
-    } catch (_err) {
+    } catch {
     res.status(400).json({ message: "Fout bij verwijderen leveradres" });
   }
 });

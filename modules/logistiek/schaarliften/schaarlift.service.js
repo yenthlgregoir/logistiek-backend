@@ -1,0 +1,79 @@
+import {Schaarlift} from './Schaarlift.model.js'
+import {MachineType} from './type.model.js'
+
+
+export const getSchaarliften = async (search) => {
+    try{
+        const query = {};
+        
+        if (search && search.trim() !== '' && search !== 'undefined') {
+            const regex = new RegExp(search.trim(), 'i'); 
+            query.$or = [
+            { nummer: regex },
+      ];
+    }
+        const schaarliften = await Schaarlift.find(query).populate({
+        path: "Type",
+        select: "naam type"});;
+        return schaarliften; 
+    }
+    catch(err){
+        throw new Error("fout bij het ophalen van de schaarliften" , {cause: err});
+    }
+}
+
+export const createSchaarlift = async (data) => {
+    try{
+        const nieuweSchaarlift = new Schaarlift(data);
+        return await nieuweSchaarlift.save();
+    }
+    catch (err){
+        throw new Error("fout bij aanmaken schaarlif" , {cause: err});
+    }
+}
+
+export const editSchaarlift = async (id, data) => {
+    try {
+        const schaarlift = await Schaarlift.findById(id);
+
+        if (!schaarlift) {
+            throw new Error("Schaarlift niet gevonden met deze ID");
+        }
+
+        // velden updaten
+        Object.assign(schaarlift, data);
+
+        const saved = await schaarlift.save();
+
+        return saved;
+    } catch (err) {
+        throw new Error("Fout bij het aanpassen van een schaarlift", {
+            cause: err
+        });
+    }
+};
+
+export const getTypes = async () => {
+    try{
+        const types = await MachineType.find();
+        return types;
+    }
+    catch(err){
+        throw new Error("Fout bij het ophalen van de Types" , {cause: err})
+    }
+}
+
+export const createType = async (data) => {
+  try {
+    const bestaandType = await MachineType.findOne({ naam: data.naam });
+    if (bestaandType) {
+      throw new Error(`Type met naam "${data.naam}" bestaat al.`);
+    }
+
+    const nieuweType = new MachineType(data);
+    return await nieuweType.save();
+  } catch (err) {
+    console.log(err)
+    throw new Error("Fout bij het aanmaken van een Type: " , {cause:  err});
+  }
+};

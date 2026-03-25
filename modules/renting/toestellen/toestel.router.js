@@ -1,11 +1,10 @@
 // routes/archiveOrders.js
 import express from "express";
-import auth from "../middelware/auth.js";
-import * as toestelService from "../service/toestelService.js";
-import { ToestelType } from "../models/toestelType.js";
-import { Klant } from "../models/klant.js"
-import {Toestel} from '../models/toestel.js'
-import * as boekingService from "../service/boekingService.js"
+import auth from "../../../middelware/auth.js";
+import * as toestelService from "./toestel.service.js";
+import { ToestelType } from "./toestelType.model.js";
+import { Klant } from "../klanten/klant.model.js"
+import * as boekingService from "../boekingen/boeking.service.js"
 
 const router = express.Router();
 
@@ -127,7 +126,7 @@ router.get("/types", auth("admin", "renting"), async (req, res) => {
   try {
     const types = await toestelService.getTypes();
     res.json({ types });
-  } catch (_err) {
+  } catch {
     res.status(400).json({ message: "Fout bij het ophalen van de types" });
   }
 });

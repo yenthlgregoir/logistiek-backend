@@ -2,8 +2,8 @@
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { randomBytes } from "node:crypto";
-import { User } from "../models/User.js";
-import { sendInviteEmail } from "./mailService.js";
+import { User } from "../users/user.model.js";
+import { sendInviteEmail } from "../../helper/mailService.js";
 
 export const loginUser = async (email, password) => {
   const user = await User.findOne({ email });

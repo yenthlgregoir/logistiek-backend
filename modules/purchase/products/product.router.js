@@ -1,6 +1,6 @@
 import express from "express";
-import { Product } from "../models/Product.js"; // pas pad aan indien nodig
-import auth from "../middelware/auth.js";
+import { Product } from "./product.model.js"; // pas pad aan indien nodig
+import auth from "../../../middelware/auth.js";
 const router = express.Router();
 
 /**
