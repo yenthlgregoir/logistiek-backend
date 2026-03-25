@@ -2,7 +2,7 @@
 import { Klant } from "../models/klant.js";
 
 export const klantenService = {
-  async getAll({ search, sort = "createdAt", order = "desc" }) {
+  async getAll({ search, sort = "naam", order = "asc" }) {
     const query = {};
 
     if (search) {
