@@ -27,10 +27,11 @@ router.get("/users", auth("admin"), async (req, res) => {
 
 router.post("/create-user", auth("admin"), async (req, res) => {
   try {
-    const { email, role } = req.body;
-    const result = await authService.createUser(email, role);
+    const { email, role, naam } = req.body;
+    const result = await authService.createUser(email, role , naam);
     res.json(result);
   } catch (err) {
+    console.log(err)
     res.status(500).json({ message: err.message });
   }
 });

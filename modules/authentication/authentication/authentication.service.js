@@ -21,7 +21,7 @@ export const loginUser = async (email, password) => {
   return token;
 };
 
-export const createUser = async (email, role) => {
+export const createUser = async (email, role, naam) => {
   const token = randomBytes(32).toString("hex");
   const tempPassword = randomBytes(6).toString("hex");
   const hashedPassword = await bcrypt.hash(tempPassword, 10);
@@ -29,6 +29,7 @@ export const createUser = async (email, role) => {
   const user = new User({
     email,
     role,
+    naam,
     password: hashedPassword,
     resetToken: token,
     resetTokenExpiry: Date.now() + 3600000, // 1 uur
