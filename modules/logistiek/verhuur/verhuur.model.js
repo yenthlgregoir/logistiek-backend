@@ -7,42 +7,55 @@ const VerhuurSchema = new mongoose.Schema({
         index: true,
         unique: true,
     },
-    type: {
-        type: mongoose.model.ObjectId,
+    machineType: {
+        type: mongoose.Schema.ObjectId,
         ref: "MachineType",
         required: true
     },
     werf:{
-        type: mongoose.model.objectId,
+        type: mongoose.Schema.ObjectId,
         ref: "Werf",
         required: true
     },
     projectleider:{
-        type: mongoose.model.objectId,
+        type: mongoose.Schema.ObjectId,
         ref: "Projectleider",
         required: true,
     },
+    werkhoogte:{
+        type : Number,
+        required : true,
+    },
     toestel: {
-        type: mongoose.model.objectId,
+        type: mongoose.Schema.ObjectId,
         ref: "Schaarlift",
         required: false,
     },
 
-    beginDatum: {
+    leverDatum: {
       type: Date,
       required: true,
     },
-
-    eindDatum: {
+    
+    ophaalDatum: {
       type: Date,
-      required: true,
+      required: false,
       validate: {
-        validator: function (value) {
-          return value > this.beginDatum;
-        },
-        message: "Einddatum moet later zijn dan begindatum.",
-      },
+    validator: function (value) {
+      if (!value) return true; // mag leeg zijn
+      return value > this.leverDatum;
     },
-})
+    message: "Einddatum moet later zijn dan begindatum.",
+  },
+    },
+    status: {
+      type: String,
+      required: true,
+      enum: ["Geleverd" , "Leveren" , "Afgewerkt" , "Opgehaald"],
+      default: "Leveren",
+        }
+},
+  { timestamps: true },
+)
 
 export const Verhuur = mongoose.model("Verhuur" , VerhuurSchema , "Verhuringen")
