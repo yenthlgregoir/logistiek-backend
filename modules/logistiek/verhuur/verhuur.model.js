@@ -1,65 +1,31 @@
-import mongoose from "mongoose"
+import mongoose from "mongoose";
 
 const VerhuurSchema = new mongoose.Schema({
-    reference: {
-        type: String, 
-        required: true,
-        index: true,
-        unique: true,
-    },
-    machineType: {
-        type: mongoose.Schema.ObjectId,
-        ref: "MachineType",
-        required: true
-    },
-    werf:{
-        type: mongoose.Schema.ObjectId,
-        ref: "Werf",
-        required: true
-    },
-    projectleider:{
-        type: mongoose.Schema.ObjectId,
-        ref: "Projectleider",
-        required: true,
-    },
-    werkhoogte:{
-        type : Number,
-        required : true,
-    },
-    toestel: {
-        type: mongoose.Schema.ObjectId,
-        ref: "Schaarlift",
-        required: false,
-    },
+  reference: { type: String, required: true, unique: true },
 
-    leverDatum: {
-      type: Date,
-      required: true,
-    },
-    
-    ophaalDatum: {
-      type: Date,
-      required: false,
-      validate: {
-    validator: function (value) {
-      if (!value) return true; // mag leeg zijn
-      return value > this.leverDatum;
-    },
-    message: "Einddatum moet later zijn dan begindatum.",
-  },
-    },
-    status: {
-      type: String,
-      required: true,
-      enum: ["Geleverd" , "Leveren" , "Afgewerkt" , "Opgehaald"],
-      default: "Leveren",
-        },
-    logistiekeReferentie:{
-      type:String,
-      required:true,
-    }
-},
-  { timestamps: true },
-)
+  // Polymorphic asset
+  asset: { type: mongoose.Schema.Types.ObjectId, required: false, refPath: "assetModel" },
+  assetModel: { type: String, required: true, enum: ["Hoogtewerker", "WerfContainer"] },
+  assetType: {type: String  , required: true},
 
-export const Verhuur = mongoose.model("Verhuur" , VerhuurSchema , "Verhuringen")
+  werf: { type: mongoose.Schema.Types.ObjectId, ref: "Werf", required: true },
+  projectleider: { type: mongoose.Schema.Types.ObjectId, ref: "Projectleider", required: true },
+
+  leverDatum: { type: Date, required: true },
+  ophaalDatum: { type: Date },
+
+  status: { type: String, enum: ["Leveren","Geleverd","Opgehaald","Afgewerkt"], default: "Leveren" },
+  logistiekeReferentie: { type: String, required: true },
+
+  werkhoogte: { type: Number },
+
+}, { timestamps: true });
+
+// Validatie: werkhoogte verplicht voor Schaarlift
+VerhuurSchema.pre("validate", async function() {
+  if ((this.assetModel === "Hoogtewerker") && (this.werkhoogte == null)) {
+    throw new Error("Werkhoogte is verplicht voor Schaarlift verhuur");
+  }
+});
+
+export const Verhuur = mongoose.model("Verhuur", VerhuurSchema, "Verhuringen");

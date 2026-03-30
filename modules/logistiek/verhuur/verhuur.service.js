@@ -1,282 +1,235 @@
-import {Verhuur} from "./verhuur.model.js"
-import {MachineType} from "../schaarliften/type.model.js"
-import {ProjectLeider} from "../projectleider/projectleider.model.js"
-import {Werf} from "../werf/werf.model.js"
-import {Schaarlift} from "../schaarliften/schaarlift.model.js"
-import mongoose from 'mongoose';
+import { Verhuur } from "./verhuur.model.js";
+import { ProjectLeider } from "../projectleider/projectleider.model.js";
+import { Werf } from "../werf/werf.model.js";
+import { Hoogtewerker} from "../hoogtewerker/hoogtewerker.model.js";
+import { WerfContainer } from "../werfcontainers/werfcontainer.model.js";
+import {MachineType} from "../hoogtewerker/type.model.js"
 
-
-export const getVerhuur = async (search, type) => {
+/**
+ * Ophalen van alle verhuringen met search en assetType filters
+ */
+export const getVerhuur = async (search, assetType) => {
   try {
-    const query = {}
+    const query = {};
 
-    // 🔍 Zoek op reference
-    if (search && search.trim() !== '' && search !== 'undefined') {
-      const regex = new RegExp(search.trim(), 'i')
-      query.$or = [
-        { reference: regex },
-      ]
+    if (search && search.trim() !== "" && search !== "undefined") {
+      const regex = new RegExp(search.trim(), "i");
+      query.$or = [{ reference: regex }];
     }
 
-    if (type && type !== 'all') {
-      console.log(type)
-      query.machineType = type // verwacht ID van machineType
+    if (assetType && assetType !== "all") {
+      query.assetModel = assetType; 
     }
 
-    const Verhuringen = await Verhuur.find(query)
+    const verhuringen = await Verhuur.find(query)
+      .populate({ path: "werf", select: "naam adres" })
+      .populate({ path: "projectleider", select: "naam" })
       .populate({
-        path: "werf",
-        select: "naam adres"
-      })
+        path: "asset",
+        select: "_id nummer werkhoogte platformhoogte serienummer Type entiteit status",
+      });
+
+    return verhuringen;
+  } catch (err) {
+    throw new Error("Fout in ophalen van verhuringen", { cause: err });
+  }
+};
+
+/**
+ * Ophalen van één verhuur op ID
+ */
+export const getVerhuurById = async (id) => {
+  try {
+    return await Verhuur.findById(id)
+      .populate({ path: "werf", select: "naam adres" })
       .populate({
         path: "projectleider",
-        select: "naam"
+        select: "naam mailAdres entiteit",
+        populate: { path: "entiteit", select: "naam" },
       })
       .populate({
-        path: "toestel",
-        select: "nummer type serienummer"
-      })
-      .populate({
-        path: "machineType",
-        select: "naam type"
-      })
+        path: "asset",
+        select: "_id nummer werkhoogte platformhoogte serienummer Type entiteit status",
+      });
+  } catch (err) {
+    throw new Error("Verhuur niet gevonden", { cause: err });
+  }
+};
 
-    return Verhuringen
-  }
-  catch (err) {
-    throw new Error("Fout in ophalen van verhuringen", { cause: err })
-  }
-}
-
-export const getVerhuurById = async (id) => {
-  try{
-    return await Verhuur.findById(id).populate({
-        path: "werf",
-        select: "naam adres"
-      })
-      .populate({
-  path: "projectleider",
-  select: "naam mailAdres entiteit",
-  populate: {
-    path: "entiteit",
-    select: "naam"
-  }
-})
-      .populate({
-        path: "toestel",
-        select: "nummer type"
-      })
-      .populate({
-        path: "machineType",
-        select: "naam type"
-      })
-;
-  }catch (err){
-    throw new Error("niet gevonden" ,  {cause: err});
-  }
-}
-
+/**
+ * Nieuwe verhuur aanmaken
+ */
 export const createVerhuur = async (data) => {
-  const { machineType, projectleider, werf, leverDatum, ophaalDatum, werkhoogte } = data;
-  const now = new Date();
+  try {
+    const {
+      asset,           // optioneel specifiek asset
+      assetModel,      // bv "Hoogtewerker" of "WerfContainer"
+      assetType,       // bv "Schaarlift" of "Knikarm"
+      projectleider,
+      werf,
+      leverDatum,
+      ophaalDatum,
+      werkhoogte,
+      logistiekeReferentie,
+    } = data;
 
-  const start = new Date(leverDatum);
-  if (start < now) {
-    throw new Error("Verhuur moet in de toekomst liggen");
+    const now = new Date();
+    if (new Date(leverDatum) < now) throw new Error("Verhuur moet in de toekomst liggen");
+
+    // --- VALIDATIE PROJECTLEIDER & WERF ---
+    const projectleiderModel = await ProjectLeider.findById(projectleider);
+    if (!projectleiderModel) throw new Error("Projectleider bestaat niet");
+
+    const werfModel = await Werf.findById(werf);
+    if (!werfModel) throw new Error("Werf bestaat niet");
+
+    let assetInstance = null;
+
+    // --- ALS SPECIFIEK ASSET GEKOZEN ---
+    if (asset) {
+      if (assetModel === "Hoogtewerker") {
+        assetInstance = await Hoogtewerker.findById(asset);
+        if (!assetInstance) throw new Error("Hoogtewerker bestaat niet");
+      } else if (assetModel === "WerfContainer") {
+        assetInstance = await WerfContainer.findById(asset);
+        if (!assetInstance) throw new Error("WerfContainer bestaat niet");
+      } else {
+        throw new Error("Ongeldig assetModel");
+      }
+    } else {
+      // --- AUTOMATISCH VRIJE ASSET KIEZEN VIA getVrijeAssets ---
+      const vrijeAssets = await getVrijeAssets({ assetModel, leverDatum, ophaalDatum, werkhoogte });
+
+      if (vrijeAssets.length === 0) {
+        throw new Error(`Geen vrije ${assetType} beschikbaar in deze periode`);
+      }
+
+      // --- FILTER OP MACHINE TYPE ---
+      const assetTypeDocs = await MachineType.find({ type: assetType });
+      const assetTypeIds = assetTypeDocs.map(t => t._id.toString());
+
+      const geschikteAssets = vrijeAssets.filter(a => assetTypeIds.includes(a.Type.toString()));
+
+      if (geschikteAssets.length === 0) {
+        throw new Error(`Geen vrije ${assetType} beschikbaar van het juiste type`);
+      }
+
+      assetInstance = geschikteAssets[0]; // pak de eerste vrije
+    }
+
+    // --- VALIDATIE WERKHOOGTE VOOR HOOGTEWERKER ---
+    if (assetModel === "Hoogtewerker") {
+      const hoogte = werkhoogte || assetInstance?.werkhoogte;
+      if (!hoogte) throw new Error("Werkhoogte is verplicht voor Hoogtewerkerverhuur");
+    }
+
+    // --- GENEREER REFERENCE ---
+    const laatsteBoeking = await Verhuur.findOne().sort({ createdAt: -1 });
+    const nieuwNummer = laatsteBoeking
+      ? parseInt(laatsteBoeking.reference.split("/")[0]) + 1
+      : 1;
+    const reference = `${nieuwNummer}/${projectleiderModel.naam}/${werfModel.naam}`;
+
+    // --- AANMAKEN VERHUUR ---
+    const verhuur = new Verhuur({
+      reference,
+      asset: null,
+      assetModel,
+      assetType,
+      projectleider,
+      werf,
+      leverDatum,
+      ophaalDatum,
+      werkhoogte: assetModel === "Hoogtewerker" ? (werkhoogte || assetInstance?.werkhoogte) : undefined,
+      status: "Leveren",
+      logistiekeReferentie,
+    });
+
+    return await verhuur.save();
+
+  } catch (error) {
+    console.error(error);
+    throw new Error("Fout bij het aanmaken van verhuur", { cause: error });
   }
+};
+/**
+ * Vrije assets ophalen
+ */
+export const getVrijeAssets = async (data) => {
+  const { assetModel, leverDatum, ophaalDatum, werkhoogte } = data;
 
-  // Check machine type
-  const typeId = new mongoose.Types.ObjectId(machineType);
-  const typeExists = await MachineType.findById(typeId);
-  if (!typeExists) {
-    throw new Error("Machine Type bestaat niet.");
-  }
+  if (!assetModel || !leverDatum) throw new Error("assetModel en leverDatum zijn verplicht");
 
-  // Check projectleider
-  const aanvragerId = new mongoose.Types.ObjectId(projectleider);
-  const aanvragerExists = await ProjectLeider.findById(aanvragerId);
-  if (!aanvragerExists) {
-    throw new Error("Projectleider bestaat niet");
-  }
+  const beginNieuweBoek = new Date(leverDatum);
+  const eindNieuweBoek = ophaalDatum ? new Date(ophaalDatum) : new Date(8640000000000000);
 
-  // Check werf
-  const werfId = new mongoose.Types.ObjectId(werf);
-  const werfExists = await Werf.findById(werfId);
-  if (!werfExists) {
-    throw new Error("Werf bestaat niet");
-  }
-
-  // Controleer beschikbaar aantal toestellen
-  const machineAantal = await Schaarlift.countDocuments({
-    Type: typeId,
-    werkhoogte: { $gte: werkhoogte },
+  // Alle assets van dit type
+  const AssetModel = assetModel === "Hoogtewerker" ? Hoogtewerker: WerfContainer;
+  const mogelijkeAssets = await AssetModel.find({
     status: "Vrij",
-  });
-  if (machineAantal === 0) {
-    throw new Error("Er bestaan geen actieve toestellen van dit type.");
-  }
+    ...(assetModel === "Hoogtewerker" && werkhoogte ? { werkhoogte: { $gte: werkhoogte } } : {}),
+  }).lean();
+
+  if (mogelijkeAssets.length === 0) return [];
 
   // Zoek overlappende verhuur
   const overlappendeBoekingen = await Verhuur.find({
-    leverDatum: { $lte: ophaalDatum ? new Date(ophaalDatum) : null }, // zie opmerking
-    ophaalDatum: { $gte: new Date(leverDatum) },
-    machineType: typeId,
-  }).select("toestel").lean();
+    assetModel,
+    $or: [
+      {
+        leverDatum: { $lte: eindNieuweBoek },
+        $or: [
+          { ophaalDatum: { $gte: beginNieuweBoek } },
+          { ophaalDatum: null },
+        ],
+      },
+    ],
+  }).select("asset").lean();
 
-  // Speciale behandeling als ophaalDatum ontbreekt
-  let aantalBezet = overlappendeBoekingen.length;
-  if (!ophaalDatum) {
-    // Als er al een open verhuur zonder ophaaldatum is, mag er niet nog een gestart worden
-    const openVerhuur = overlappendeBoekingen.find(b => !b.ophaalDatum);
-    if (openVerhuur) {
-      throw new Error("Er is al een verhuur gestart vanaf deze leverdatum zonder ophaaldatum.");
-    }
-  }
+  const bezetIds = overlappendeBoekingen.map(b => b.asset?.toString()).filter(Boolean);
 
-  if (aantalBezet >= machineAantal) {
-    throw new Error("Geen schaarliften van dit type beschikbaar in deze periode.");
-  }
-
-  // Genereer referentie
-  const laatsteBoeking = await Verhuur.findOne().sort({ createdAt: -1 });
-  let nieuwNummer = 1;
-  if (laatsteBoeking?.reference) {
-    const laatsteNummer = parseInt(laatsteBoeking.reference.split("/")[0]);
-    nieuwNummer = laatsteNummer + 1;
-  }
-  const reference = `${nieuwNummer}/${aanvragerExists.naam}/${werfExists.naam}`;
-
-  const nieuwVerhuur = new Verhuur({
-    ...data,
-    reference,
-    toestel: null,
-  });
-
-  return await nieuwVerhuur.save();
+  return mogelijkeAssets.filter(t => !bezetIds.includes(t._id.toString()));
 };
 
-export const getVrijeToestellen = async (data) => {
-  try {
-    const { machineType, leverDatum, ophaalDatum, werkhoogte } = data;
+/**
+ * Asset toewijzen aan een verhuur
+ */
+export const assignAsset = async ({ asset, verhuurId }) => {
+  const verhuur = await Verhuur.findById(verhuurId);
+  if (!verhuur) throw new Error("Verhuur niet gevonden");
 
-    if (!machineType || !leverDatum) {
-      throw new Error("machineType en leverDatum zijn verplicht");
-    }
-
-    const typeId = new mongoose.Types.ObjectId(machineType);
-    const beginNieuweBoek = new Date(leverDatum);
-// juiste check voor ophaalDatum
-const eindNieuweBoek = (ophaalDatum && ophaalDatum !== "null") 
-  ? new Date(ophaalDatum) 
-  : new Date(8640000000000000); // oneindig
-    // Alle mogelijke toestellen van dit type en werkhoogte
-    const mogelijkeToestellen = await Schaarlift.find({
-      Type: typeId,
-      werkhoogte: { $gte: werkhoogte },
-      status: "Vrij",
-    })
-      .populate({ path: "Type", select: "naam type" })
-      .lean();
-
-    if (mogelijkeToestellen.length === 0) return [];
-
-    // Zoek overlappende verhuur (inclusief null ophaalDatum)
-    const overlappendeBoekingen = await Verhuur.find({
-      machineType: typeId,
-      $or: [
-        {
-          leverDatum: { $lte: eindNieuweBoek },
-          $or: [
-            { ophaalDatum: { $gte: beginNieuweBoek } },
-            { ophaalDatum: null },
-          ],
-        },
-      ],
-    }).select("toestel").lean();
-
-    // Haal bezette toestel-ID's
-    const bezetIds = overlappendeBoekingen
-      .map((b) => b.toestel?.toString())
-      .filter(Boolean);
-
-    // Filter vrije toestellen
-    const vrijeToestellen = mogelijkeToestellen.filter(
-      (t) => !bezetIds.includes(t._id.toString())
-    );
-
-    return vrijeToestellen;
-  } catch (error) {
-    throw new Error("Fout bij ophalen van vrije toestellen: ", {cause: error});
-  }
+  verhuur.asset = asset;
+  return await verhuur.save();
 };
 
-export const assignToestel = async (data) => {
-
-    try{
-         const {toestel , verhuurId} = data;
-
-    const verhuur = await Verhuur.findById(verhuurId);
-
-    if(!verhuur){
-        throw new Error ("geen verhuur gevonden");
-    }
-
-    verhuur.toestel = toestel;
-    const saved = await verhuur.save();
-    return saved;
-
-    }
-    catch (error){
-        throw new Error("fout bij het toewijzen van een toestel" , {cause: error})
-    }
-}
-
+/**
+ * Verhuur updaten
+ */
 export const updateVerhuur = async (id, data) => {
-  try {
-    const { projectleider, werf } = data;
+  const { projectleider, werf } = data;
 
-    // Zorg dat je await gebruikt
-    const projectleiderModel = await ProjectLeider.findById(projectleider);
-    const werfModel = await Werf.findById(werf);
+  const projectleiderModel = await ProjectLeider.findById(projectleider);
+  const werfModel = await Werf.findById(werf);
 
-    const verhuur = await Verhuur.findById(id)
-      .populate({
-        path: "werf",
-        select: "naam adres"
-      })
-      .populate({
-        path: "projectleider",
-        select: "naam"
-      });
+  const verhuur = await Verhuur.findById(id);
+  if (!verhuur) throw new Error("Verhuur niet gevonden");
 
-    if (!verhuur) {
-      throw new Error("Verhuur niet gevonden");
-    }
-
-    let ref = verhuur.reference.split('/');
-    // Let op: = i.p.v. ==
-    if (verhuur.projectleider?.naam != projectleiderModel?.naam) {
-      ref[1] = projectleiderModel.naam;
-    }
-
-    if (werf && verhuur.werf?.naam != werfModel.naam) {
-      ref[2] = werfModel.naam;
-    }
-
-    data.reference = ref.join('/');
-    return await Verhuur.findByIdAndUpdate(id , data)
-
-  } catch (err) {
-    throw new Error("Fout bij het updaten van een verhuur", { cause: err });
+  let ref = verhuur.reference.split("/");
+  if (projectleider && verhuur.projectleider?.toString() !== projectleiderModel._id.toString()) {
+    ref[1] = projectleiderModel.naam;
   }
+  if (werf && verhuur.werf?.toString() !== werfModel._id.toString()) {
+    ref[2] = werfModel.naam;
+  }
+
+  data.reference = ref.join("/");
+
+  return await Verhuur.findByIdAndUpdate(id, data, { new: true });
 };
 
+/**
+ * Verhuur verwijderen
+ */
 export const deleteVerhuur = async (id) => {
-  try {
-    await Verhuur.findByIdAndDelete(id);
-    return;
-  }
-  catch{
-    throw new Error("fout bij het verwijderen van een boeking");
-  }
-}
+  await Verhuur.findByIdAndDelete(id);
+};

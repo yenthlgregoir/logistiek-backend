@@ -11,7 +11,7 @@ const TypeSchema = new mongoose.Schema({
         type: String, 
         required: true,
         unique: false,
-        enum: ["Schaarlift" , "Knikarm"]
+        enum: ["Schaarlift" , "Knikarm" , "Werfcontainer"]
     },
 })
 

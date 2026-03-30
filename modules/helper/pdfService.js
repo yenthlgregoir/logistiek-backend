@@ -314,8 +314,8 @@ export const generateVerhuurPDF = (res, verhuur) => {
 
   doc.fillColor("#000")
     .fontSize(11)
-    .text(verhuur.machineType?.naam || "-", 50, rowY + 8)
-    .text(verhuur.toestel?.nummer || "-", 250, rowY + 8)
+    .text(verhuur.assetModel || "-", 50, rowY + 8)
+    .text(verhuur.asset?.nummer || "-", 250, rowY + 8)
     .text("1,00", 450, rowY + 8, { width: 60, align: "center" })
 
 
