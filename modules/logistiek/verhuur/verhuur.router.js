@@ -1,5 +1,6 @@
 import express from "express";
 import * as VerhuurService from "./verhuur.service.js";
+import * as pdfService from "../../helper/pdfService.js"
 import auth from "../../../middelware/auth.js";
 
 const router = express.Router();
@@ -15,7 +16,18 @@ router.get("/", auth("logistics", "admin"), async (req, res) => {
         res.status(500).json({ message: err.message });
     }
 });
+router.get("/export-pdf/:id", auth("admin", "renting"), async (req, res) => {
+  try {
+    const { id } = req.params;
 
+    const boeking = await VerhuurService.getVerhuurById(id);
+
+    pdfService.generateVerhuurPDF(res, boeking);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("Fout bij PDF genereren");
+  }
+});
 router.post("/", auth("logistics" , "admin"), async (req, res) => {
     try {
         const nieuwVerhuur = await VerhuurService.createVerhuur(req.body);
@@ -67,4 +79,6 @@ router.delete("/:id" , auth("logistics" , "admin") , async(req, res) =>{
         res.status(500).json({message: err.message});
     }
 })
+
+
 export default router;

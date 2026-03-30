@@ -36,7 +36,7 @@ const schaarliftSchema = new mongoose.Schema(
     status: {
         type: String,
         enum: ["Vrij" , "Bezet" , "Kapot" , "Ongekeurd"],
-    }
+    },
   },
   { timestamps: true },
 );

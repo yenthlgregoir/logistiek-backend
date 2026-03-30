@@ -18,7 +18,6 @@ export const getVerhuur = async (search, type) => {
       ]
     }
 
-    // 🟢 Filter op machineType
     if (type && type !== 'all') {
       console.log(type)
       query.machineType = type // verwacht ID van machineType
@@ -35,7 +34,7 @@ export const getVerhuur = async (search, type) => {
       })
       .populate({
         path: "toestel",
-        select: "nummer type"
+        select: "nummer type serienummer"
       })
       .populate({
         path: "machineType",
@@ -46,6 +45,34 @@ export const getVerhuur = async (search, type) => {
   }
   catch (err) {
     throw new Error("Fout in ophalen van verhuringen", { cause: err })
+  }
+}
+
+export const getVerhuurById = async (id) => {
+  try{
+    return await Verhuur.findById(id).populate({
+        path: "werf",
+        select: "naam adres"
+      })
+      .populate({
+  path: "projectleider",
+  select: "naam mailAdres entiteit",
+  populate: {
+    path: "entiteit",
+    select: "naam"
+  }
+})
+      .populate({
+        path: "toestel",
+        select: "nummer type"
+      })
+      .populate({
+        path: "machineType",
+        select: "naam type"
+      })
+;
+  }catch (err){
+    throw new Error("niet gevonden" ,  {cause: err});
   }
 }
 
@@ -204,14 +231,45 @@ export const assignToestel = async (data) => {
     }
 }
 
-export const updateVerhuur = async (id , data) => {
-  try{
-    return await Verhuur.findByIdAndUpdate(id ,data);
+export const updateVerhuur = async (id, data) => {
+  try {
+    const { projectleider, werf } = data;
+
+    // Zorg dat je await gebruikt
+    const projectleiderModel = await ProjectLeider.findById(projectleider);
+    const werfModel = await Werf.findById(werf);
+
+    const verhuur = await Verhuur.findById(id)
+      .populate({
+        path: "werf",
+        select: "naam adres"
+      })
+      .populate({
+        path: "projectleider",
+        select: "naam"
+      });
+
+    if (!verhuur) {
+      throw new Error("Verhuur niet gevonden");
+    }
+
+    let ref = verhuur.reference.split('/');
+    // Let op: = i.p.v. ==
+    if (verhuur.projectleider?.naam != projectleiderModel?.naam) {
+      ref[1] = projectleiderModel.naam;
+    }
+
+    if (werf && verhuur.werf?.naam != werfModel.naam) {
+      ref[2] = werfModel.naam;
+    }
+
+    data.reference = ref.join('/');
+    return await Verhuur.findByIdAndUpdate(id , data)
+
+  } catch (err) {
+    throw new Error("Fout bij het updaten van een verhuur", { cause: err });
   }
-  catch (err){
-    throw new Error("fout bij het update van een verhuur" , {cause: err});
-  }
-}
+};
 
 export const deleteVerhuur = async (id) => {
   try {

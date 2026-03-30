@@ -53,7 +53,11 @@ const VerhuurSchema = new mongoose.Schema({
       required: true,
       enum: ["Geleverd" , "Leveren" , "Afgewerkt" , "Opgehaald"],
       default: "Leveren",
-        }
+        },
+    logistiekeReferentie:{
+      type:String,
+      required:true,
+    }
 },
   { timestamps: true },
 )

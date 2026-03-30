@@ -19,9 +19,12 @@ export const getSchaarliften = async (search) => {
 
     // Boekingen op dit moment ophalen
     const overlappendeBoekingen = await Verhuur.find({
-      leverDatum: { $lte: now },
-      ophaalDatum: { $gte: now },
-    })
+  leverDatum: { $lte: now },
+  $or: [
+    { ophaalDatum: { $gte: now } },
+    { ophaalDatum: null }
+  ]
+})
       .populate({ path: "toestel", select: "nummer Type" })
       .populate({ path: "werf", select: "naam adres" })
 .populate({
