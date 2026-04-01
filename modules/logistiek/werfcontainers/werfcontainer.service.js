@@ -1,18 +1,20 @@
-import {Hoogtewerker} from './hoogtewerker.model.js'
-import {Verhuur} from '../verhuur/verhuur.model.js'
-import {MachineType} from './type.model.js'
+import {WerfContainer} from "./werfcontainer.model.js"
+import {Verhuur} from "../verhuur/verhuur.model.js"
+import {MachineType} from "../hoogtewerker/type.model.js"
 
 
-export const getHoogtewerkers = async (search) => {
-   try {
+export const getWerfcontainers = async (search) => {
+     try {
     const query = {}
 
+    // 🔍 SEARCH
     if (search && search.trim() !== '' && search !== 'undefined') {
       const regex = new RegExp(search.trim(), 'i')
       query.$or = [{ nummer: regex }]
     }
 
-    const assets = await Hoogtewerker.find(query)
+    // 🔥 Assets ophalen (nog steeds Hoogtewerkeren model voorlopig)
+    const assets = await WerfContainer.find(query)
       .populate({ path: "Type", select: "naam type" })
       .lean()
 
@@ -52,7 +54,6 @@ export const getHoogtewerkers = async (search) => {
       boekingenPerAsset[assetId].push(boeking)
     })
 
-    // 🔥 Merge assets + boekingen
     const resultaat = assets.map(asset => {
       const assetId = asset._id.toString()
 
@@ -68,30 +69,27 @@ export const getHoogtewerkers = async (search) => {
     throw new Error("Fout bij het ophalen van assets", { cause: err })
   }
 }
-export const createHoogtewerker = async (data) => {
-    try{
-        const nieuweHoogtewerker = new Hoogtewerker(data);
-        return await nieuweHoogtewerker.save();
+export const createWerfcontainer = async (data) => {
+try{
+        const nieuweWerfContainer = new WerfContainer(data);
+        return await nieuweWerfContainer.save();
     }
     catch (err){
         throw new Error("fout bij aanmaken schaarlif" , {cause: err});
     }
 }
-
-
-
-export const editHoogtewerker = async (id, data) => {
+export const editWerfcontainer = async (id, data) => {
     try {
-        const hoogtewerker = await Hoogtewerker.findById(id);
+        const werfcontainer = await WerfContainer.findById(id);
 
-        if (!Hoogtewerker) {
-            throw new Error("Hoogtewerker niet gevonden met deze ID");
+        if (!werfcontainer) {
+            throw new Error("werfcontainer niet gevonden met deze ID");
         }
 
         // velden updaten
-        Object.assign(hoogtewerker, data);
+        Object.assign(werfcontainer, data);
 
-        const saved = await hoogtewerker.save();
+        const saved = await werfcontainer.save();
 
         return saved;
     } catch (err) {
@@ -100,28 +98,12 @@ export const editHoogtewerker = async (id, data) => {
         });
     }
 };
-
 export const getTypes = async () => {
     try{
-        const types = await MachineType.find();
+        const types  = await MachineType.find({ type: "Werfcontainer" });
         return types;
     }
     catch(err){
         throw new Error("Fout bij het ophalen van de Types" , {cause: err})
     }
 }
-
-export const createType = async (data) => {
-  try {
-    const bestaandType = await MachineType.findOne({ naam: data.naam });
-    if (bestaandType) {
-      throw new Error(`Type met naam "${data.naam}" bestaat al.`);
-    }
-
-    const nieuweType = new MachineType(data);
-    return await nieuweType.save();
-  } catch (err) {
-    console.log(err)
-    throw new Error("Fout bij het aanmaken van een Type: " , {cause:  err});
-  }
-};
