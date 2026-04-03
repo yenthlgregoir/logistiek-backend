@@ -68,14 +68,19 @@ export const getBoekingen = async ({ search, startDatum, eindDatum, archief }) =
       .sort({ beginDatum: 1 })
       .lean();
     for (const boeking of boekingen) {
-      if (boeking.klant && boeking.leverAdres) {
-        const gevondenAdres = boeking.klant.leverAdressen?.find(
-          (adres) => adres._id.toString() === boeking.leverAdres.toString(),
-        );
-        boeking.leverAdresDetails = gevondenAdres || null;
-      } else {
-        boeking.leverAdresDetails = null;
-      }
+      if (boeking.klant) {
+  if (boeking.leverAdres) {
+    const gevondenAdres = boeking.klant.leverAdressen?.find(
+      (adres) => adres._id.toString() === boeking.leverAdres.toString(),
+    );
+    boeking.leverAdresDetails = gevondenAdres || boeking.klant.factuurAdres;
+  } else {
+    // 👉 fallback naar factuuradres
+    boeking.leverAdresDetails = boeking.klant.factuurAdres;
+  }
+} else {
+  boeking.leverAdresDetails = null;
+}
 
       if (boeking.beginDatum) {
         boeking.beginDatumFormatted = new Date(

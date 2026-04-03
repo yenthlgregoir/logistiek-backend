@@ -8,3 +8,12 @@ export async function getUsers() {
         throw new Error("fout bij het ophalen van de users",err);
     }
 }
+export async function getUserById(id) {
+    try {
+        const user = await User.findById(id);
+        if (!user) throw new Error("User niet gevonden");
+        return user;
+    } catch(err) {
+        throw new Error("Fout bij het ophalen van de user: " , err.message);
+    }
+}

@@ -33,7 +33,7 @@ router.post("/", async (req, res) => {
 })
 
 // ✏️ PUT - werfcontainer aanpassen
-router.put("/:id", async (req, res) => {
+router.patch("/:id", async (req, res) => {
   try {
     const updated = await WerfcontainerService.editWerfcontainer(
       req.params.id,

@@ -16,6 +16,7 @@ export const getWerfcontainers = async (search) => {
     // 🔥 Assets ophalen (nog steeds Hoogtewerkeren model voorlopig)
     const assets = await WerfContainer.find(query)
       .populate({ path: "Type", select: "naam type" })
+      .populate({path: "entiteit" , select: "naam"})
       .lean()
 
     const now = new Date()
@@ -32,8 +33,7 @@ export const getWerfcontainers = async (search) => {
       .populate({ path: "asset", select: "nummer Type" }) // 🔥 FIX
       .populate({ path: "werf", select: "naam adres" })
       .populate({
-        path: "projectleider",
-        select: "naam entiteit",
+        path:  "projectleider",
         populate: {
           path: "entiteit",
           select: "naam"
@@ -75,7 +75,8 @@ try{
         return await nieuweWerfContainer.save();
     }
     catch (err){
-        throw new Error("fout bij aanmaken schaarlif" , {cause: err});
+        console.log(err)
+        throw new Error("fout bij aanmaken werfcontainer" , {cause: err});
     }
 }
 export const editWerfcontainer = async (id, data) => {

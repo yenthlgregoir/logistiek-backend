@@ -47,4 +47,13 @@ router.post("/set-password/:token", async (req, res) => {
   }
 });
 
+router.get("/me", auth(), async (req, res) => {
+  try {
+    const user = await userService.getUserById(req.user.userId);
+    res.json(user);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 export default router;
