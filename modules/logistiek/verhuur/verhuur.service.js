@@ -8,7 +8,7 @@ import {MachineType} from "../hoogtewerker/type.model.js"
 /**
  * Ophalen van alle verhuringen met search en assetType filters
  */
-export const getVerhuur = async (search, assetType) => {
+export const getVerhuur = async (search, assetType , type) => {
   try {
     const query = {};
 
@@ -19,6 +19,10 @@ export const getVerhuur = async (search, assetType) => {
 
     if (assetType && assetType !== "all") {
       query.assetModel = assetType; 
+    }
+
+    if (type){
+      query.assetType = type;
     }
 
     const verhuringen = await Verhuur.find(query)
@@ -62,19 +66,22 @@ export const getVerhuurById = async (id) => {
 export const createVerhuur = async (data) => {
   try {
     const {
-      asset,           // optioneel specifiek asset
-      assetModel,      // bv "Hoogtewerker" of "WerfContainer"
-      assetType,       // bv "Schaarlift" of "Knikarm"
+      asset,
+      assetModel,
+      assetType,
       projectleider,
       werf,
       leverDatum,
       ophaalDatum,
       werkhoogte,
       logistiekeReferentie,
+      entiteit, // 🔥 NIEUW
     } = data;
 
     const now = new Date();
-    if (new Date(leverDatum) < now) throw new Error("Verhuur moet in de toekomst liggen");
+    if (new Date(leverDatum) < now) {
+      throw new Error("Verhuur moet in de toekomst liggen");
+    }
 
     // --- VALIDATIE PROJECTLEIDER & WERF ---
     const projectleiderModel = await ProjectLeider.findById(projectleider);
@@ -85,6 +92,13 @@ export const createVerhuur = async (data) => {
 
     let assetInstance = null;
 
+    // --- VALIDATIE ENTITEIT VOOR WERFCONTAINER ---
+    if (assetModel === "WerfContainer") {
+      if (!entiteit) {
+        throw new Error("Entiteit is verplicht voor werfcontainer verhuur");
+      }
+    }
+
     // --- ALS SPECIFIEK ASSET GEKOZEN ---
     if (asset) {
       if (assetModel === "Hoogtewerker") {
@@ -93,44 +107,73 @@ export const createVerhuur = async (data) => {
       } else if (assetModel === "WerfContainer") {
         assetInstance = await WerfContainer.findById(asset);
         if (!assetInstance) throw new Error("WerfContainer bestaat niet");
+
+        // 🔥 CHECK ENTITEIT MATCH
+        if (assetInstance.entiteit.toString() !== entiteit.toString()) {
+          throw new Error("Container behoort niet tot de gekozen entiteit");
+        }
       } else {
         throw new Error("Ongeldig assetModel");
       }
     } else {
-      // --- AUTOMATISCH VRIJE ASSET KIEZEN VIA getVrijeAssets ---
-      const vrijeAssets = await getVrijeAssets({ assetModel, leverDatum, ophaalDatum, werkhoogte });
-
+      // --- AUTOMATISCH VRIJE ASSETS ---
+      const vrijeAssets = await getVrijeAssets({
+        assetModel,
+        leverDatum,
+        ophaalDatum,
+        werkhoogte,
+      });
+      
+  
       if (vrijeAssets.length === 0) {
         throw new Error(`Geen vrije ${assetType} beschikbaar in deze periode`);
       }
 
-      // --- FILTER OP MACHINE TYPE ---
-      const assetTypeDocs = await MachineType.find({ type: assetType });
-      const assetTypeIds = assetTypeDocs.map(t => t._id.toString());
+      // --- FILTER OP TYPE ---
+const assetTypeDocs = await MachineType.find({
+  $or: [
+    { naam: assetType },
+    { Type: assetType }
+  ]
+});      const assetTypeIds = assetTypeDocs.map(t => t._id.toString());
 
-      const geschikteAssets = vrijeAssets.filter(a => assetTypeIds.includes(a.Type.toString()));
 
-      if (geschikteAssets.length === 0) {
-        throw new Error(`Geen vrije ${assetType} beschikbaar van het juiste type`);
+      let geschikteAssets = vrijeAssets.filter(a =>
+        assetTypeIds.includes(a.Type.toString())
+      );
+
+      // 🔥 EXTRA FILTER VOOR WERFCONTAINER
+      if (assetModel === "WerfContainer") {
+        geschikteAssets = geschikteAssets.filter(a =>
+          a.entiteit?.toString() === entiteit.toString()
+        );
       }
 
-      assetInstance = geschikteAssets[0]; // pak de eerste vrije
+      if (geschikteAssets.length === 0) {
+        throw new Error(`Geen vrije ${assetType} beschikbaar met deze filters`);
+      }
+
+      assetInstance = geschikteAssets[0];
     }
 
-    // --- VALIDATIE WERKHOOGTE VOOR HOOGTEWERKER ---
+    // --- VALIDATIE WERKHOOGTE ---
     if (assetModel === "Hoogtewerker") {
       const hoogte = werkhoogte || assetInstance?.werkhoogte;
-      if (!hoogte) throw new Error("Werkhoogte is verplicht voor Hoogtewerkerverhuur");
+      if (!hoogte) {
+        throw new Error("Werkhoogte is verplicht voor Hoogtewerkerverhuur");
+      }
     }
 
-    // --- GENEREER REFERENCE ---
+    // --- REFERENCE ---
     const laatsteBoeking = await Verhuur.findOne().sort({ createdAt: -1 });
+
     const nieuwNummer = laatsteBoeking
       ? parseInt(laatsteBoeking.reference.split("/")[0]) + 1
       : 1;
+
     const reference = `${nieuwNummer}/${projectleiderModel.naam}/${werfModel.naam}`;
 
-    // --- AANMAKEN VERHUUR ---
+    // --- SAVE ---
     const verhuur = new Verhuur({
       reference,
       asset: null,
@@ -140,7 +183,11 @@ export const createVerhuur = async (data) => {
       werf,
       leverDatum,
       ophaalDatum,
-      werkhoogte: assetModel === "Hoogtewerker" ? (werkhoogte || assetInstance?.werkhoogte) : undefined,
+      entiteit: assetModel === "WerfContainer" ? entiteit : undefined, 
+      werkhoogte:
+        assetModel === "Hoogtewerker"
+          ? (werkhoogte || assetInstance?.werkhoogte)
+          : undefined,
       status: "Leveren",
       logistiekeReferentie,
     });

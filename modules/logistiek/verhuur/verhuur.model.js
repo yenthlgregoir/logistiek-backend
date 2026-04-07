@@ -17,14 +17,19 @@ const VerhuurSchema = new mongoose.Schema({
   status: { type: String, enum: ["Leveren","Geleverd","Opgehaald","Afgewerkt"], default: "Leveren" },
   logistiekeReferentie: { type: String, required: true },
 
+  //optioneel
   werkhoogte: { type: Number },
+  entiteit: {type: mongoose.Schema.Types.ObjectId , ref: "Entiteit"}
 
 }, { timestamps: true });
 
 // Validatie: werkhoogte verplicht voor Schaarlift
 VerhuurSchema.pre("validate", async function() {
   if ((this.assetModel === "Hoogtewerker") && (this.werkhoogte == null)) {
-    throw new Error("Werkhoogte is verplicht voor Schaarlift verhuur");
+    throw new Error("Werkhoogte is verplicht voor Hoogtewerker verhuur");
+  }
+  else if(this.assetModel === "WerfContainer" && this.entiteit == null){
+    throw new Error("Entiteit is verplicht voor werfcontainer verhuur")
   }
 });
 

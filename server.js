@@ -4,6 +4,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 
 
+
 import uploadRouter from "./modules/helper/upload.js";
 import authenticationRoutes from "./modules/authentication/authentication.routes.js";
 import rentingRoutes from "./modules/renting/renting.routes.js";
@@ -31,6 +32,10 @@ app.use("/authentication" , authenticationRoutes)
 app.use("/purchase" , purchaseRoutes)
 app.use("/renting", rentingRoutes);
 app.use("/logistics" , logistiekRoutes);
+
+
+
+
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT);

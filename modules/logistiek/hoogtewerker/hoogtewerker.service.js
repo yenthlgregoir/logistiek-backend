@@ -18,7 +18,6 @@ export const getHoogtewerkers = async (search) => {
 
     const now = new Date()
 
-    // 🔥 Actieve boekingen (met NIEUW systeem)
     const actieveBoekingen = await Verhuur.find({
       assetModel: "Hoogtewerker", // 🔥 BELANGRIJK
       leverDatum: { $lte: now },
@@ -102,14 +101,16 @@ export const editHoogtewerker = async (id, data) => {
 };
 
 export const getTypes = async () => {
-    try{
-        const types = await MachineType.find();
-        return types;
-    }
-    catch(err){
-        throw new Error("Fout bij het ophalen van de Types" , {cause: err})
-    }
-}
+  try {
+    const types = await MachineType.find({
+      type: { $in: ['Knikarm', 'Schaarlift'] }
+    });
+
+    return types;
+  } catch (err) {
+    throw new Error("Fout bij het ophalen van de Types", { cause: err });
+  }
+};
 
 export const createType = async (data) => {
   try {
@@ -117,7 +118,6 @@ export const createType = async (data) => {
     if (bestaandType) {
       throw new Error(`Type met naam "${data.naam}" bestaat al.`);
     }
-
     const nieuweType = new MachineType(data);
     return await nieuweType.save();
   } catch (err) {

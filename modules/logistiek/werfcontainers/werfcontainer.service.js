@@ -16,14 +16,14 @@ export const getWerfcontainers = async (search) => {
     // 🔥 Assets ophalen (nog steeds Hoogtewerkeren model voorlopig)
     const assets = await WerfContainer.find(query)
       .populate({ path: "Type", select: "naam type" })
-      .populate({path: "entiteit" , select: "naam"})
+      .populate({path: "entiteit" , select: "naam icon color"})
       .lean()
 
     const now = new Date()
 
     // 🔥 Actieve boekingen (met NIEUW systeem)
     const actieveBoekingen = await Verhuur.find({
-      assetModel: "Hoogtewerker", // 🔥 BELANGRIJK
+      assetModel: "WerfContainer", // 🔥 BELANGRIJK
       leverDatum: { $lte: now },
       $or: [
         { ophaalDatum: { $gte: now } },
@@ -75,7 +75,6 @@ try{
         return await nieuweWerfContainer.save();
     }
     catch (err){
-        console.log(err)
         throw new Error("fout bij aanmaken werfcontainer" , {cause: err});
     }
 }
@@ -100,11 +99,13 @@ export const editWerfcontainer = async (id, data) => {
     }
 };
 export const getTypes = async () => {
-    try{
-        const types  = await MachineType.find({ type: "Werfcontainer" });
-        return types;
-    }
-    catch(err){
-        throw new Error("Fout bij het ophalen van de Types" , {cause: err})
-    }
-}
+  try {
+    const types = await MachineType.find({
+      type: { $in: ['Werfcontainer'] }
+    });
+
+    return types;
+  } catch (err) {
+    throw new Error("Fout bij het ophalen van de Types", { cause: err });
+  }
+};
