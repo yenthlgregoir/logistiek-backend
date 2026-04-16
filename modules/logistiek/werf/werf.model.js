@@ -11,7 +11,7 @@ const WerfSchema = new mongoose.Schema({
             required: true
         },
         huisnummer:{
-            type: Number,
+            type: String,
             required: true,
         },
         postcode:{
