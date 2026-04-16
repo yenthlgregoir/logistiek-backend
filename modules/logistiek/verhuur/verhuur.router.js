@@ -9,7 +9,13 @@ const router = express.Router();
 router.get("/", auth("logistics", "admin"), async (req, res) => {
   try {
     const search = req.query.search || "";
-    const type = req.query.type || "";
+    let type;
+    if(req.query.type === 'undefined' || !req.query.type ){
+      type = ""
+    }
+    else{
+       type = req.query.type || "";
+    }
     const assetModel = req.query.assetModel || "all"; // aangepast
     const verhuring = await VerhuurService.getVerhuur(search, assetModel , type);
     res.status(200).json(verhuring);

@@ -8,7 +8,7 @@ import {MachineType} from "../hoogtewerker/type.model.js"
 /**
  * Ophalen van alle verhuringen met search en assetType filters
  */
-export const getVerhuur = async (search, assetType , type) => {
+export const getVerhuur = async (search, assetModel , type) => {
   try {
     const query = {};
 
@@ -17,8 +17,8 @@ export const getVerhuur = async (search, assetType , type) => {
       query.$or = [{ reference: regex }];
     }
 
-    if (assetType && assetType !== "all") {
-      query.assetModel = assetType; 
+    if (assetModel && assetModel !== "all") {
+      query.assetModel = assetModel; 
     }
 
     if (type){
@@ -75,15 +75,18 @@ export const createVerhuur = async (data) => {
       ophaalDatum,
       werkhoogte,
       logistiekeReferentie,
-      entiteit, // 🔥 NIEUW
+      entiteit,
     } = data;
 
-    const now = new Date();
-    if (new Date(leverDatum) < now) {
-      throw new Error("Verhuur moet in de toekomst liggen");
+    // 🔴 VALIDATIE DATUMS
+    if (!leverDatum) {
+      throw new Error("Leverdatum is verplicht");
     }
 
-    // --- VALIDATIE PROJECTLEIDER & WERF ---
+    if (ophaalDatum && new Date(ophaalDatum) < new Date(leverDatum)) {
+      throw new Error("Ophaaldatum kan niet vóór leverdatum liggen");
+    }
+
     const projectleiderModel = await ProjectLeider.findById(projectleider);
     if (!projectleiderModel) throw new Error("Projectleider bestaat niet");
 
@@ -92,79 +95,94 @@ export const createVerhuur = async (data) => {
 
     let assetInstance = null;
 
-    // --- VALIDATIE ENTITEIT VOOR WERFCONTAINER ---
-    if (assetModel === "WerfContainer") {
-      if (!entiteit) {
-        throw new Error("Entiteit is verplicht voor werfcontainer verhuur");
-      }
+    // 🔴 WerfContainer validatie
+    if (assetModel === "WerfContainer" && !entiteit) {
+      throw new Error("Entiteit is verplicht voor werfcontainer verhuur");
     }
 
-    // --- ALS SPECIFIEK ASSET GEKOZEN ---
+    // =========================
+    // 1. SPECIFIEK ASSET GEKOZEN
+    // =========================
     if (asset) {
       if (assetModel === "Hoogtewerker") {
         assetInstance = await Hoogtewerker.findById(asset);
         if (!assetInstance) throw new Error("Hoogtewerker bestaat niet");
-      } else if (assetModel === "WerfContainer") {
+      }
+
+      if (assetModel === "WerfContainer") {
         assetInstance = await WerfContainer.findById(asset);
         if (!assetInstance) throw new Error("WerfContainer bestaat niet");
 
-        // 🔥 CHECK ENTITEIT MATCH
-        if (assetInstance.entiteit.toString() !== entiteit.toString()) {
-          throw new Error("Container behoort niet tot de gekozen entiteit");
+        if (String(assetInstance.entiteit) !== String(entiteit)) {
+          throw new Error("Container hoort niet bij deze entiteit");
         }
-      } else {
-        throw new Error("Ongeldig assetModel");
       }
-    } else {
-      // --- AUTOMATISCH VRIJE ASSETS ---
+    }
+
+    // =========================
+    // 2. AUTOMATISCH SELECTEREN
+    // =========================
+    if (!assetInstance) {
       const vrijeAssets = await getVrijeAssets({
         assetModel,
         leverDatum,
         ophaalDatum,
         werkhoogte,
       });
-      
-  
-      if (vrijeAssets.length === 0) {
+
+      if (!vrijeAssets?.length) {
         throw new Error(`Geen vrije ${assetType} beschikbaar in deze periode`);
       }
 
-      // --- FILTER OP TYPE ---
-const assetTypeDocs = await MachineType.find({
+      // 🔴 FIX: eenvoudige en veilige type lookup
+      const assetTypeDocs = await MachineType.find({
   $or: [
     { naam: assetType },
-    { Type: assetType }
+    { type: assetType }
   ]
-});      const assetTypeIds = assetTypeDocs.map(t => t._id.toString());
+});
 
 
-      let geschikteAssets = vrijeAssets.filter(a =>
-        assetTypeIds.includes(a.Type.toString())
-      );
+      const assetTypeIds = assetTypeDocs.map(t => String(t._id));
 
-      // 🔥 EXTRA FILTER VOOR WERFCONTAINER
-      if (assetModel === "WerfContainer") {
-        geschikteAssets = geschikteAssets.filter(a =>
-          a.entiteit?.toString() === entiteit.toString()
-        );
+      if (!assetTypeIds.length) {
+        throw new Error(`Geen geldige machine types gevonden voor ${assetType}`);
       }
 
-      if (geschikteAssets.length === 0) {
+      let geschikteAssets = vrijeAssets.filter(a => {
+        const typeMatch = assetTypeIds.includes(String(a.Type));
+
+        if (assetModel === "WerfContainer") {
+          return (
+            typeMatch &&
+            String(a.entiteit || "") === String(entiteit || "")
+          );
+        }
+
+        return typeMatch;
+      });
+
+      if (!geschikteAssets.length) {
         throw new Error(`Geen vrije ${assetType} beschikbaar met deze filters`);
       }
 
       assetInstance = geschikteAssets[0];
     }
 
-    // --- VALIDATIE WERKHOOGTE ---
+    // =========================
+    // 3. WERKHOOGTE VALIDATIE
+    // =========================
     if (assetModel === "Hoogtewerker") {
       const hoogte = werkhoogte || assetInstance?.werkhoogte;
+
       if (!hoogte) {
-        throw new Error("Werkhoogte is verplicht voor Hoogtewerkerverhuur");
+        throw new Error("Werkhoogte is verplicht voor Hoogtewerker");
       }
     }
 
-    // --- REFERENCE ---
+    // =========================
+    // 4. REFERENCE
+    // =========================
     const laatsteBoeking = await Verhuur.findOne().sort({ createdAt: -1 });
 
     const nieuwNummer = laatsteBoeking
@@ -173,17 +191,19 @@ const assetTypeDocs = await MachineType.find({
 
     const reference = `${nieuwNummer}/${projectleiderModel.naam}/${werfModel.naam}`;
 
-    // --- SAVE ---
+    // =========================
+    // 5. SAVE
+    // =========================
     const verhuur = new Verhuur({
       reference,
-      asset: null,
+      asset:  null,
       assetModel,
       assetType,
       projectleider,
       werf,
       leverDatum,
-      ophaalDatum,
-      entiteit: assetModel === "WerfContainer" ? entiteit : undefined, 
+      ophaalDatum: ophaalDatum || null,
+      entiteit: assetModel === "WerfContainer" ? entiteit : undefined,
       werkhoogte:
         assetModel === "Hoogtewerker"
           ? (werkhoogte || assetInstance?.werkhoogte)
@@ -193,10 +213,11 @@ const assetTypeDocs = await MachineType.find({
     });
 
     return await verhuur.save();
-
   } catch (error) {
     console.error(error);
-    throw new Error("Fout bij het aanmaken van verhuur", { cause: error });
+    throw new Error("Fout bij het aanmaken van verhuur", {
+      cause: error,
+    });
   }
 };
 /**

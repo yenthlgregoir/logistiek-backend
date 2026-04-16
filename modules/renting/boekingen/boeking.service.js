@@ -4,7 +4,7 @@ import { ToestelType } from "../toestellen/toestelType.model.js";
 import { Klant } from "../klanten/klant.model.js";
 import mongoose from "mongoose";
 
-export const getBoekingen = async ({ search, startDatum, eindDatum, archief }) => {
+export const getBoekingen = async ({ search, startDatum, eindDatum, archief, type }) => {
   try {
     const vandaag = new Date();
     vandaag.setHours(0, 0, 0, 0);
@@ -43,7 +43,8 @@ export const getBoekingen = async ({ search, startDatum, eindDatum, archief }) =
   filter.$or = [
     { ref: regex },                                     
     { toestel: { $in: toestellen.map(t => t._id) } },   
-    { leverAdres: { $in: matchingLeverAdresIds } },     
+    { leverAdres: { $in: matchingLeverAdresIds } },  
+    {type : type}   
   ];
 }
 

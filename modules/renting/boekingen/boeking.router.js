@@ -15,8 +15,8 @@ const router = express.Router();
 
 router.get("/", auth("admin", "renting"), async (req, res) => {
   try {
-    const { search, startDatum, eindDatum, archief } = req.query;
-    const boekingen = await getBoekingen({ search, startDatum, eindDatum, archief });
+    const { search, startDatum, eindDatum, archief, type } = req.query;
+    const boekingen = await getBoekingen({ search, startDatum, eindDatum, archief, type });
     res.status(200).json(boekingen);
   } catch (error) {
     res.status(400).json({
