@@ -15,7 +15,9 @@ export const getBoekingen = async ({ search, startDatum, eindDatum, archief, typ
     } else if (archief === "false") {
       filter.eindDatum = { $gte: vandaag };
     }
-
+if (type && type !== 'null') {
+  filter.toestelType = type;
+}
     // 🔹 Date range filter
     if (startDatum !== 'null' && eindDatum !== 'null') { 
       filter.beginDatum = {}; 
@@ -44,7 +46,6 @@ export const getBoekingen = async ({ search, startDatum, eindDatum, archief, typ
     { ref: regex },                                     
     { toestel: { $in: toestellen.map(t => t._id) } },   
     { leverAdres: { $in: matchingLeverAdresIds } },  
-    {type : type}   
   ];
 }
 
