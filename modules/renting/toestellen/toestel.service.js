@@ -14,10 +14,6 @@ export const getToestellen = async (filter = {}, sort = { createdAt: -1 }) => {
   const toestellen = await Toestel.find(cleanFilter)
     .sort(sort)
     .populate("type", "naam")
-    .populate({
-      path: "klant",
-      select: "naam",
-    })
     .lean();
 
   const vandaag = new Date();
