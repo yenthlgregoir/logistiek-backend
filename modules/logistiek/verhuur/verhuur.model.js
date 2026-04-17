@@ -9,7 +9,7 @@ const VerhuurSchema = new mongoose.Schema({
   assetType: {type: String  , required: true},
 
   werf: { type: mongoose.Schema.Types.ObjectId, ref: "Werf", required: true },
-  projectleider: { type: mongoose.Schema.Types.ObjectId, ref: "Projectleider", required: true },
+  projectleider: { type: mongoose.Schema.Types.ObjectId, ref: "Projectleider", required: false },
 
   leverDatum: { type: Date, required: true },
   ophaalDatum: { type: Date },

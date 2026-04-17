@@ -87,8 +87,13 @@ export const createVerhuur = async (data) => {
       throw new Error("Ophaaldatum kan niet vóór leverdatum liggen");
     }
 
-    const projectleiderModel = await ProjectLeider.findById(projectleider);
-    if (!projectleiderModel) throw new Error("Projectleider bestaat niet");
+    let projectleiderModel = null;
+
+if (projectleider) {
+  projectleiderModel = await ProjectLeider.findById(projectleider);
+  if (!projectleiderModel) throw new Error("Projectleider bestaat niet");
+}
+
 
     const werfModel = await Werf.findById(werf);
     if (!werfModel) throw new Error("Werf bestaat niet");
@@ -189,8 +194,9 @@ export const createVerhuur = async (data) => {
       ? parseInt(laatsteBoeking.reference.split("/")[0]) + 1
       : 1;
 
-    const reference = `${nieuwNummer}/${projectleiderModel.naam}/${werfModel.naam}`;
+const plNaam = projectleiderModel?.naam || "intern";
 
+const reference = `${nieuwNummer}/${plNaam}/${werfModel.naam}`;
     // =========================
     // 5. SAVE
     // =========================
@@ -215,7 +221,7 @@ export const createVerhuur = async (data) => {
     return await verhuur.save();
   } catch (error) {
     console.error(error);
-    throw new Error("Fout bij het aanmaken van verhuur", {
+    throw new Error( error.message, {
       cause: error,
     });
   }

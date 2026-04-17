@@ -53,13 +53,6 @@ const toestelSchema = new mongoose.Schema(
       required: false,
       default: "N/A",
     },
-    klant: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Klant",
-      default: null,
-      required: false,
-      index: true,
-    },
     status: statusSchema,
   },
   { timestamps: true },
