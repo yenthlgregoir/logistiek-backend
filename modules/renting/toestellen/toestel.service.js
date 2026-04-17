@@ -3,76 +3,128 @@ import { Toestel } from "./toestel.model.js";
 import { ToestelType } from "./toestelType.model.js";
 import { Boeking } from "../boekingen/boeking.model.js";
 
-
-
 export const getToestellen = async (filter = {}, sort = { createdAt: -1 }) => {
-
   const cleanFilter = Object.fromEntries(
     Object.entries(filter).filter(([, v]) => v != null && v !== '' && v !== 'undefined')
   );
 
-  const toestellen = await Toestel.find(cleanFilter)
+  const vandaag = new Date();
+  vandaag.setHours(0, 0, 0, 0);
+
+  const sortKey = Object.keys(sort)[0] || "createdAt";
+  const sortDir = sort[sortKey] === -1 ? -1 : 1;
+
+  // =========================
+  // 1. BASIS TOESTELLEN (TYPE FILTER!)
+  // =========================
+  const toestellen = await Toestel.find(
+    cleanFilter.type ? { type: cleanFilter.type } : {}
+  )
     .sort(sort)
     .populate("type", "naam")
     .lean();
 
-  const vandaag = new Date();
-  vandaag.setHours(0, 0, 0, 0);
+  if (!toestellen.length) return [];
 
-  const actieveBoekingen = await Boeking.find({
-  toestel: { $ne: null },
-  beginDatum: { $lte: vandaag },
-  eindDatum: { $gte: vandaag },
-})
-.populate({
-  path: "klant",
-  select: "leverAdressen",
-})
-.select("toestel leverAdres klant")
-.lean();
+  const toestelIds = toestellen.map(t => t._id);
 
-const toestelMap = {};
+  // =========================
+  // 2. ACTIEVE BOEKINGEN
+  // =========================
+  const boekingQuery = {
+    toestel: { $in: toestelIds },
+    beginDatum: { $lte: vandaag },
+    eindDatum: { $gte: vandaag },
+  };
 
-actieveBoekingen.forEach(b => {
-  if (!b.toestel) return;
-
-  let adres = null;
-
-  if (b.klant && b.leverAdres) {
-    adres = b.klant.leverAdressen?.find(
-      a => a._id.toString() === b.leverAdres.toString()
-    );
+  // 🔥 KLANT FILTER HIER TOEVOEGEN
+  if (cleanFilter.klant) {
+    boekingQuery.klant = cleanFilter.klant;
   }
 
-  toestelMap[b.toestel.toString()] = adres || null;
-});
+  const actieveBoekingen = await Boeking.find(boekingQuery)
+    .populate({
+      path: "klant",
+      select: "leverAdressen naam",
+    })
+    .select("toestel leverAdres klant")
+    .lean();
 
+  // =========================
+  // 3. MAP BOEKINGEN → toestelId
+  // =========================
+  const boekingMap = {};
 
+  actieveBoekingen.forEach(b => {
+    if (!b.toestel) return;
 
-  // 🔹 gnw toevoegen
-  const enriched = toestellen.map(t => {
-  const adres = toestelMap[t._id.toString()];
+    let adres = null;
 
-  return {
-    ...t,
-    gnw: adres ? adres : "vrij"
-  };
-});
-
-  return enriched.sort((a, b) => {
-    const aIsNumeric = /^[0-9]+$/.test(a.Ref);
-    const bIsNumeric = /^[0-9]+$/.test(b.Ref);
-
-    if (aIsNumeric && !bIsNumeric) return -1;
-    if (!aIsNumeric && bIsNumeric) return 1;
-
-    if (aIsNumeric && bIsNumeric) {
-      return Number(a.Ref) - Number(b.Ref);
+    if (b.klant && b.leverAdres) {
+      adres = b.klant.leverAdressen?.find(
+        a => a._id.toString() === b.leverAdres.toString()
+      );
     }
 
-    return new Date(b.createdAt) - new Date(a.createdAt);
+    boekingMap[b.toestel.toString()] = adres || null;
   });
+
+  // =========================
+  // 4. RESULTAAT BOUWEN
+  // =========================
+  let result = toestellen.map(t => ({
+    ...t,
+    gnw: boekingMap[t._id.toString()] || "vrij",
+  }));
+
+  // =========================
+  // 5. 🔥 BELANGRIJK: ALS KLANT FILTER → ENKEL DIE MET BOEKING
+  // =========================
+  if (cleanFilter.klant) {
+    result = result.filter(t => boekingMap[t._id.toString()]);
+  }
+
+  // =========================
+  // 6. SORT
+  // =========================
+  return sortToestellen(result, sortKey, sortDir);
 };
+
+
+// =========================
+// SORT HELPER
+// =========================
+function sortToestellen(arr, sortKey, sortDir) {
+  return arr.sort((a, b) => {
+    if (sortKey === "Ref") {
+      const aIsNumeric = /^[0-9]+$/.test(a.Ref);
+      const bIsNumeric = /^[0-9]+$/.test(b.Ref);
+
+      if (aIsNumeric && !bIsNumeric) return -1 * sortDir;
+      if (!aIsNumeric && bIsNumeric) return 1 * sortDir;
+
+      if (aIsNumeric && bIsNumeric) {
+        return (Number(a.Ref) - Number(b.Ref)) * sortDir;
+      }
+    }
+
+    const aVal = a[sortKey];
+    const bVal = b[sortKey];
+
+    if (!aVal) return 1;
+    if (!bVal) return -1;
+
+    if (!isNaN(new Date(aVal)) && !isNaN(new Date(bVal))) {
+      return (new Date(aVal) - new Date(bVal)) * sortDir;
+    }
+
+    if (typeof aVal === "string") {
+      return aVal.localeCompare(bVal) * sortDir;
+    }
+
+    return (aVal - bVal) * sortDir;
+  });
+}
 export const createToestel = async (data) => {
   const { type, ...rest } = data;
 
