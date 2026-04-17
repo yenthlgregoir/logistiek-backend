@@ -133,7 +133,7 @@ export const createBoeking = async (data) => {
     throw new Error("Er bestaan geen actieve toestellen van dit type.");
   }
 
-  // 4️⃣ Zoek overlappende boekingen van dit type
+  // 4️⃣ Zoek overlappende boekingen van dit types
   const overlappendeBoekingen = await Boeking.find({
     beginDatum: { $lte: new Date(eindDatum) },
     eindDatum: { $gte: new Date(beginDatum) },
@@ -278,7 +278,7 @@ export const changeStatus = async (req, res) => {
 };
 export const getVrijeToestellen = async (req, res) => {
   try {
-    const { beginDatum, eindDatum, toestelType , klant } = req.query;
+    const { beginDatum, eindDatum, toestelType, klant } = req.query;
 
     if (!beginDatum || !eindDatum) {
       return res.status(400).json({
@@ -289,26 +289,44 @@ export const getVrijeToestellen = async (req, res) => {
     const start = new Date(beginDatum);
     const eind = new Date(eindDatum);
 
-    // 1️⃣ Basis query: alleen actieve toestellen
-    let toestellenQuery = { "status.statusType": "Actief" };
+    // optional: normaliseren
+    start.setSeconds(0, 0);
+    eind.setSeconds(0, 0);
 
-    // 🔹 Filter op toestelType als MongoDB ID
-    if (toestelType) {
-      if (/^[0-9a-fA-F]{24}$/.test(toestelType)) {
-        toestellenQuery.type = new mongoose.Types.ObjectId(toestelType);
-      }
+    // 1️⃣ basis query
+    let toestellenQuery = {
+      "status.statusType": "Actief",
+    };
+
+    // 2️⃣ filter toestelType
+    if (toestelType && /^[0-9a-fA-F]{24}$/.test(toestelType)) {
+      toestellenQuery.type = new mongoose.Types.ObjectId(toestelType);
     }
 
-    if (klant) {
-  if (mongoose.Types.ObjectId.isValid(klant)) {
-    toestellenQuery.klant = new mongoose.Types.ObjectId(klant);
-  } else {
-    console.warn("Ongeldig klant id:", klant);
-  }
-}
+    // 3️⃣ filter klant (optioneel)
+    if (klant && mongoose.Types.ObjectId.isValid(klant)) {
+      toestellenQuery.klant = new mongoose.Types.ObjectId(klant);
+    }
 
-    // 2️⃣ Vind toestellen en populate type
-    let toestellen = await Toestel.find(toestellenQuery)
+    // 4️⃣ overlappende boekingen ophalen
+    const overlappendeBoekingen = await Boeking.find({
+      toestel: { $ne: null },
+      beginDatum: { $lt: eind },
+      eindDatum: { $gt: start },
+    })
+      .select("toestel")
+      .lean();
+
+    // 5️⃣ bezette toestellen lijst
+    const bezetteIds = overlappendeBoekingen.map((b) =>
+      b.toestel.toString()
+    );
+
+    // 6️⃣ exclusief bezette toestellen
+    toestellenQuery._id = { $nin: bezetteIds };
+
+    // 7️⃣ ophalen vrije toestellen
+    const toestellen = await Toestel.find(toestellenQuery)
       .populate({
         path: "type",
         model: "ToestelType",
@@ -316,29 +334,9 @@ export const getVrijeToestellen = async (req, res) => {
       })
       .lean();
 
-
-    if (!toestellen.length) return res.status(200).json([]);
-
-    // 3️⃣ Filter overlappende boekingen
-    const overlappendeBoekingen = await Boeking.find({
-      toestel: { $ne: null },
-      beginDatum: { $lte: eind },
-      eindDatum: { $gte: start },
-    })
-      .select("toestel")
-      .lean();
-
-    const bezetteToestelIds = overlappendeBoekingen.map((b) =>
-      b.toestel.toString()
-    );
-
-    toestellen = toestellen.filter(
-      (t) => !bezetteToestelIds.includes(t._id.toString())
-    );
-
-
     return toestellen;
   } catch (error) {
+    console.error("Fout bij ophalen vrije toestellen:", error);
     throw new Error("Fout bij ophalen vrije toestellen:", error)
   }
 };
@@ -374,8 +372,8 @@ export const assignToestel = async (req, res) => {
     const overlappendeBoekingen = await Boeking.find({
       toestel: toestel._id,
       _id: { $ne: boeking._id }, // andere boekingen
-      beginDatum: { $lte: boeking.eindDatum },
-      eindDatum: { $gte: boeking.beginDatum },
+      beginDatum: { $lt: boeking.eindDatum },
+      eindDatum: { $gt: boeking.beginDatum },
     });
 
     if (overlappendeBoekingen.length > 0) {
