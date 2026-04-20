@@ -347,3 +347,81 @@ export const generateVerhuurPDF = (res, verhuur) => {
 
   doc.end();
 };
+
+export const generateHoogtewerkersPDF = (res, assets) => {
+
+  const doc = new PDFDocument({
+    size: "A4",
+    layout: "landscape", // 🔥 landscape
+    margin: 40
+  })
+
+  res.setHeader("Content-Type", "application/pdf")
+  res.setHeader("Content-Disposition", "attachment; filename=hoogtewerkers.pdf")
+
+  doc.pipe(res)
+
+  /* TITLE */
+  doc.fontSize(18).text("Overzicht Hoogtewerkers", { align: "center" })
+  doc.moveDown()
+
+  /* TABLE HEADER */
+  const startY = 100
+
+  doc.rect(40, startY, 760, 25).fill("#0284c7") // breder door landscape
+
+  doc.fillColor("#fff")
+    .fontSize(11)
+    .text("Nummer", 50, startY + 7)
+    .text("Type", 200, startY + 7)
+    .text("Locatie", 400, startY + 7)
+
+  let y = startY + 25
+
+  doc.fontSize(10).fillColor("#000")
+
+  assets.forEach((asset, index) => {
+
+    // nieuwe pagina
+    if (y > doc.page.height - 80) {
+      doc.addPage()
+      y = 50
+    }
+
+    // 🔥 locatie bepalen
+    let locatie = "Wingepark 27, 3110 Rotselaar"
+
+    if (asset.huidigeBoekingen.length > 0) {
+      const boeking = asset.huidigeBoekingen[0]
+
+      const adres = boeking.werf?.adres || {}
+
+      locatie = [
+        boeking.werf?.naam,
+        `${adres.straat || ""} ${adres.huisnummer || ""}`,
+        `${adres.postcode || ""} ${adres.gemeente || ""}`
+      ]
+        .filter(Boolean)
+        .join(", ")
+    }
+
+    /* zebra row */
+    if (index % 2 === 0) {
+      doc.rect(40, y, 760, 25).fill("#f9fafb")
+      doc.fillColor("#000")
+    }
+
+    /* data */
+    doc.text(asset.nummer || "-", 50, y + 7)
+
+    doc.text(asset.Type?.naam || "-", 200, y + 7)
+
+    doc.text(locatie, 400, y + 7, {
+      width: 350
+    })
+
+    y += 25
+  })
+
+  doc.end()
+}

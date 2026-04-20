@@ -1,6 +1,7 @@
 import express from "express";
 import * as HoogtewerkerService from "./hoogtewerker.service.js";
 import auth from "../../../middelware/auth.js";
+import {generateHoogtewerkersPDF} from "../../HELPER/pdfService.js"
 
 const router = express.Router();
 
@@ -53,5 +54,17 @@ router.post("/types" , auth("logistics" , "admin") , async(req,res) => {
     catch (err) {
         res.status(400).json({message: err.message});
     }
+})
+
+router.get("/pdf", async (req, res) => {
+  try {
+    const data = await await HoogtewerkerService.getHoogtewerkers(req.query.search)
+
+    generateHoogtewerkersPDF(res, data)
+
+  } catch (err) {
+    console.error(err)
+    res.status(500).send("Fout bij genereren PDF")
+  }
 })
 export default router;
