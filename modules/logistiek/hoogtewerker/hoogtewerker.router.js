@@ -1,7 +1,7 @@
 import express from "express";
 import * as HoogtewerkerService from "./hoogtewerker.service.js";
 import auth from "../../../middelware/auth.js";
-import {generateHoogtewerkersPDF} from "../../HELPER/pdfService.js"
+import {generateHoogtewerkersPDF} from "../../helper/pdfService.js"
 
 const router = express.Router();
 
