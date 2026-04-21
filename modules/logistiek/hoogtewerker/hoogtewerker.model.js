@@ -8,7 +8,8 @@ const hoogteWerkerSchema = new mongoose.Schema({
   platformhoogte: { type: Number, required: true },
   werkhoogte: { type: Number, required: true }, 
   keuringDatum: { type: Date },
-  status: { type: String, enum: ["Vrij", "Bezet", "Kapot", "Ongekeurd"] }
+  status: { type: String, enum: ["Vrij", "Bezet", "Kapot", "Ongekeurd"] },
+  comment: {type: String, required: false},
 }, { timestamps: true });
 
 export const Hoogtewerker = mongoose.model("Hoogtewerker", hoogteWerkerSchema, "hoogtewerkers");
