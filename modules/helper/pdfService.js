@@ -223,10 +223,14 @@ export const generateVerhuurPDF = (res, verhuur) => {
   doc.fontSize(16);
   const refHeight = doc.heightOfString(refText, { width: textWidth });
 
+
+  doc.fontSize(11);
+  const logRefHeight = doc.heightOfString(verhuur.logistiekeReferentie , {width: textWidth});
+
   doc.fontSize(11);
   const periodeHeight = doc.heightOfString(periodeText, { width: textWidth });
 
-  const blockHeight = refHeight + periodeHeight + (padding * 2);
+  const blockHeight = refHeight + periodeHeight + + logRefHeight + (padding * 2);
 
   doc.rect(40, refY, 515, blockHeight).fill("#e6f0fb");
 
@@ -236,15 +240,19 @@ export const generateVerhuurPDF = (res, verhuur) => {
     .text(refText, 55, refY + padding, {
       width: textWidth
     });
+doc
+    .fontSize(11)
+    .fillColor("#374151")
+    .text("logistieke referentie:" + verhuur.logistiekeReferentie, 55, refY + padding + refHeight,{
+      width:textWidth
+    })
 
   doc
     .fontSize(11)
     .fillColor("#374151")
-    .text(periodeText, 55, refY + padding + refHeight, {
+    .text(periodeText, 55, refY + padding + refHeight + periodeHeight + 3, {
       width: textWidth
     });
-
-
 
   const yStart = refY + blockHeight + 20;
 
@@ -268,9 +276,9 @@ export const generateVerhuurPDF = (res, verhuur) => {
 
 
   const projectleiderText = [
-    verhuur.projectleider.naam,
-    verhuur.projectleider.entiteit.naam,
-    verhuur.projectleider.mailAdres,
+    verhuur.projectleider?.naam || "",
+    verhuur.projectleider?.entiteit.naam  || "",
+    verhuur.projectleider?.mailAdres  || "",
   ].filter(Boolean).join("\n");
   const projectleiderHeight = doc.heightOfString(projectleiderText, { width: addrTextWidth });
 
@@ -314,7 +322,7 @@ export const generateVerhuurPDF = (res, verhuur) => {
 
   doc.fillColor("#000")
     .fontSize(11)
-    .text(verhuur.assetModel || "-", 50, rowY + 8)
+    .text(verhuur.assetType || "-", 50, rowY + 8)
     .text(verhuur.asset?.nummer || "-", 250, rowY + 8)
     .text("1,00", 450, rowY + 8, { width: 60, align: "center" })
 
@@ -362,13 +370,15 @@ export const generateHoogtewerkersPDF = (res, assets) => {
   doc.pipe(res)
 
   /* TITLE */
-  doc.fontSize(18).text("Overzicht Hoogtewerkers", { align: "center" })
+  const d = new Date();
+  const date = `${d.getDate()}-${d.getMonth() + 1}-${d.getFullYear()}`;
+  doc.fontSize(18).text("Overzicht hoogtewerkers " + date, { align: "center" })
   doc.moveDown()
 
   /* TABLE HEADER */
   const startY = 100
 
-  doc.rect(40, startY, 760, 25).fill("#0284c7") // breder door landscape
+  doc.rect(40, startY, 760, 25).fill("#0284c7") 
 
   doc.fillColor("#fff")
     .fontSize(11)
@@ -397,7 +407,7 @@ export const generateHoogtewerkersPDF = (res, assets) => {
       const adres = boeking.werf?.adres || {}
 
       locatie = [
-        boeking.werf?.naam,
+        boeking.werf?.naam || "",
         `${adres.straat || ""} ${adres.huisnummer || ""}`,
         `${adres.postcode || ""} ${adres.gemeente || ""}`
       ]

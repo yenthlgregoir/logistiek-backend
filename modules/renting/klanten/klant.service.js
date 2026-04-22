@@ -54,8 +54,8 @@ export const klantenService = {
   },
   async updateLeverAdres(req, res) {
     try {
-      const { id } = req.params; // Klant ID
-      const { adres } = req.body; // Nieuw adres object met _id en velden
+      const { id } = req.params; 
+      const { adres } = req.body; 
 
       if (!adres || !adres._id) {
         return res
