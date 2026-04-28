@@ -13,6 +13,12 @@ const TypeSchema = new mongoose.Schema({
         unique: false,
         enum: ["Schaarlift" , "Knikarm" , "Werfcontainer"]
     },
+
+    hefvermogen: { type: Number, required: false },
+    ingeklapteHoogte: {type: Number , required: false},
+    merk: {type: String , required: false},
+    breedte: {type: Number, required: false},
+    omschrijving: { type: String , required: false},
 })
 
 export const MachineType = mongoose.model("MachineType", TypeSchema, "MachineTypes");

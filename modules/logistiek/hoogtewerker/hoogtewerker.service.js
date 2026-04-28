@@ -13,7 +13,7 @@ export const getHoogtewerkers = async (search) => {
     }
 
     const assets = await Hoogtewerker.find(query)
-      .populate({ path: "Type", select: "naam type" })
+      .populate({ path: "Type", select: "naam type hefvermogen ingeklapteHoogte breedte omschrijving merk" })
       .lean()
 
     const now = new Date()
