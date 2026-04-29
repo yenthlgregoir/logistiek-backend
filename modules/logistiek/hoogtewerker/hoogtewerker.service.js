@@ -72,6 +72,71 @@ end.setDate(start.getDate() + 7)
     throw new Error("Fout bij het ophalen van assets", { cause: err })
   }
 }
+
+export const getHoogtewerkersNu = async (search) => {
+   try {
+    const query = {}
+
+    if (search && search.trim() !== '' && search !== 'undefined') {
+      const regex = new RegExp(search.trim(), 'i')
+      query.$or = [{ nummer: regex }]
+    }
+
+    const assets = await Hoogtewerker.find(query)
+      .populate({ path: "Type", select: "naam type hefvermogen ingeklapteHoogte breedte omschrijving merk" })
+      .lean()
+
+
+    const now = new Date()
+    const actieveBoekingen = await Verhuur.find({
+      assetModel: "Hoogtewerker", // 🔥 BELANGRIJK
+      leverDatum: { $lte: now },
+      $or: [
+        { ophaalDatum: { $gte: now } },
+        { ophaalDatum: null }
+      ]
+    })
+      .populate({ path: "asset", select: "nummer Type" }) // 🔥 FIX
+      .populate({ path: "werf", select: "naam adres" })
+      .populate({
+        path: "projectleider",
+        select: "naam entiteit",
+        populate: {
+          path: "entiteit",
+          select: "naam"
+        }
+      })
+      .lean()
+
+    const boekingenPerAsset = {}
+
+    actieveBoekingen.forEach(boeking => {
+      const assetId = boeking.asset?._id?.toString()
+      if (!assetId) return
+
+      if (!boekingenPerAsset[assetId]) {
+        boekingenPerAsset[assetId] = []
+      }
+
+      boekingenPerAsset[assetId].push(boeking)
+    })
+
+    // 🔥 Merge assets + boekingen
+    const resultaat = assets.map(asset => {
+      const assetId = asset._id.toString()
+
+      return {
+        ...asset,
+        huidigeBoekingen: boekingenPerAsset[assetId] || []
+      }
+    })
+
+    return resultaat
+
+  } catch (err) {
+    throw new Error("Fout bij het ophalen van assets", { cause: err })
+  }
+}
 export const createHoogtewerker = async (data) => {
     try{
         const nieuweHoogtewerker = new Hoogtewerker(data);
