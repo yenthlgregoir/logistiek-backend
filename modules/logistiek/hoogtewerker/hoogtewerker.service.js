@@ -16,16 +16,21 @@ export const getHoogtewerkers = async (search) => {
       .populate({ path: "Type", select: "naam type hefvermogen ingeklapteHoogte breedte omschrijving merk" })
       .lean()
 
-    const now = new Date()
+
+    const start = new Date()
+const end = new Date()
+end.setDate(start.getDate() + 7)
 
     const actieveBoekingen = await Verhuur.find({
-      assetModel: "Hoogtewerker", // 🔥 BELANGRIJK
-      leverDatum: { $lte: now },
-      $or: [
-        { ophaalDatum: { $gte: now } },
-        { ophaalDatum: null }
-      ]
-    })
+  assetModel: "Hoogtewerker",
+  
+  // boeking overlapt met komende 7 dagen
+  leverDatum: { $lte: end },
+  $or: [
+    { ophaalDatum: { $gte: start } },
+    { ophaalDatum: null }
+  ]
+})
       .populate({ path: "asset", select: "nummer Type" }) // 🔥 FIX
       .populate({ path: "werf", select: "naam adres" })
       .populate({
