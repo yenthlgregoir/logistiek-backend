@@ -603,9 +603,10 @@ try {
 
     // 2️⃣ aantal overlappende boekingen (OOK zonder toestel)
     const overlappendeBoekingen = await Boeking.countDocuments({
-      beginDatum: { $lt: eind },
-      eindDatum: { $gt: start },
-    });
+  beginDatum: { $lt: eind },
+  eindDatum: { $gt: start },
+  toestelType: typeId, // of wat jouw field is
+})
 
     // 3️⃣ berekening beschikbaar
     const beschikbaar = Math.max(
