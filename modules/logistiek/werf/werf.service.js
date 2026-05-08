@@ -54,7 +54,6 @@ export const deleteWerf = async (id) => {
 
 export const editWerf = async (id, data) => {
   try {
-    console.log(data)
     const updatedWerf = await Werf.findByIdAndUpdate(
       id,
       data,
@@ -75,3 +74,4 @@ export const editWerf = async (id, data) => {
     throw error
   }
 }
+

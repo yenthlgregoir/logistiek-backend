@@ -1,6 +1,6 @@
 import express from "express";
 import fs from "fs-extra";
-import path from "path";
+import path from "node:path";
 import { upload } from "./multer.js";
 import mime from "mime-types";
 import auth from "../../middelware/auth.js";
@@ -195,4 +195,5 @@ router.get("/export-pdf/:id", auth("admin", "renting"), async (req, res) => {
     res.status(500).send("Fout bij PDF genereren");
   }
 });
+
 export default router;

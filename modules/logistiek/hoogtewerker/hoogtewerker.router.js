@@ -58,7 +58,7 @@ router.post("/types" , auth("logistics" , "admin") , async(req,res) => {
 
 router.get("/pdf", async (req, res) => {
   try {
-    const data = await await HoogtewerkerService.getHoogtewerkersNu(req.query.search)
+    const data =  await HoogtewerkerService.getHoogtewerkersNu(req.query.search)
 
     generateHoogtewerkersPDF(res, data)
 

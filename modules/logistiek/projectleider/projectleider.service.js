@@ -1,5 +1,4 @@
 import {ProjectLeider} from "./projectleider.model.js";
-import {Entiteit} from "../entiteit/entiteit.model.js"
 
 export const getProjectleiders = async (search = '') => {
     try{

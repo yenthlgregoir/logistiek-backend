@@ -191,7 +191,7 @@ if (projectleider) {
     const laatsteBoeking = await Verhuur.findOne().sort({ createdAt: -1 });
 
     const nieuwNummer = laatsteBoeking
-      ? parseInt(laatsteBoeking.reference.split("/")[0]) + 1
+      ? Number.parseInt(laatsteBoeking.reference.split("/")[0]) + 1
       : 1;
 
 const plNaam = projectleiderModel?.naam || "intern";

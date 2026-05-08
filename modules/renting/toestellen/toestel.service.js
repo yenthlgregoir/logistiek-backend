@@ -3,7 +3,9 @@ import { Toestel } from "./toestel.model.js";
 import { ToestelType } from "./toestelType.model.js";
 import { Boeking } from "../boekingen/boeking.model.js";
 
-export const getToestellen = async (filter = {}, sort = { createdAt: -1 }) => {
+const DEFAULT_SORT = { createdAt: -1 };
+
+export const getToestellen = async (filter = {}, sort = DEFAULT_SORT) => {
   const cleanFilter = Object.fromEntries(
     Object.entries(filter).filter(([, v]) => v != null && v !== '' && v !== 'undefined')
   );
@@ -114,14 +116,13 @@ function sortToestellen(arr, sortKey, sortDir) {
     if (!aVal) return 1;
     if (!bVal) return -1;
 
-    if (!isNaN(new Date(aVal)) && !isNaN(new Date(bVal))) {
+    if (!Number.isNaN(new Date(aVal)) && !Number.isNaN(new Date(bVal))) {
       return (new Date(aVal) - new Date(bVal)) * sortDir;
     }
 
     if (typeof aVal === "string") {
       return aVal.localeCompare(bVal) * sortDir;
     }
-
     return (aVal - bVal) * sortDir;
   });
 }
@@ -227,7 +228,7 @@ export const changeToetelStatus = async (id, data) => {
 
   const updated = await Toestel.findByIdAndUpdate(
     id,
-    { "status.statusType": statusType },
+    { "status.statu sType": statusType },
     { new: true },
   );
 

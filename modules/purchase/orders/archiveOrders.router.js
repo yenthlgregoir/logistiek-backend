@@ -32,8 +32,8 @@ router.get("/", auth("admin", "purchase"), async (req, res) => {
       finalFilter.$text = { $search: q };
     }
 
-    const pageNum = Math.max(parseInt(page, 10) || 1, 1);
-    const limitNum = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
+    const pageNum = Math.max(Number.parseInt(page, 10) || 1, 1);
+    const limitNum = Math.min(Math.max(Number.parseInt(limit, 10) || 20, 1), 100);
 
     const sortObj = {};
     if (sort.startsWith("-")) sortObj[sort.substring(1)] = -1;

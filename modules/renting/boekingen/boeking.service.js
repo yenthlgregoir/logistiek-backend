@@ -155,7 +155,7 @@ export const createBoeking = async (data) => {
   let nieuwNummer = 1;
 
   if (laatsteBoeking?.ref) {
-    const laatsteNummer = parseInt(laatsteBoeking.ref.split("/")[0]);
+    const laatsteNummer = Number.parseInt(laatsteBoeking.ref.split("/")[0]);
     nieuwNummer = laatsteNummer + 1;
   }
 
@@ -567,6 +567,61 @@ export const updatePeriode = async (req, res) => {
   } catch  {
     res.status(500).json({
       message: "Fout bij aanpassen periode.",
+    });
+  }
+};
+
+export const getAantalVrijeToestellen = async (req, res) => {
+try {
+    const { beginDatum, eindDatum, toestelType } = req.query;
+
+    if (!beginDatum || !eindDatum || !toestelType) {
+      return res.status(400).json({
+        message: "beginDatum, eindDatum en toestelType zijn verplicht.",
+      });
+    }
+
+    const start = new Date(beginDatum);
+    const eind = new Date(eindDatum);
+
+    start.setSeconds(0, 0);
+    eind.setSeconds(0, 0);
+
+    if (!mongoose.Types.ObjectId.isValid(toestelType)) {
+      return res.status(400).json({
+        message: "Ongeldig toestelType.",
+      });
+    }
+
+    const typeId = new mongoose.Types.ObjectId(toestelType);
+
+    // 1️⃣ totaal aantal toestellen van dat type
+    const totaalToestellen = await Toestel.countDocuments({
+      type: typeId,
+      "status.statusType": "Actief",
+    });
+
+    // 2️⃣ aantal overlappende boekingen (OOK zonder toestel)
+    const overlappendeBoekingen = await Boeking.countDocuments({
+      beginDatum: { $lt: eind },
+      eindDatum: { $gt: start },
+    });
+
+    // 3️⃣ berekening beschikbaar
+    const beschikbaar = Math.max(
+      0,
+      totaalToestellen - overlappendeBoekingen
+    );
+
+    return res.status(200).json({
+      totaalToestellen,
+      overlappendeBoekingen,
+      beschikbaar,
+    });
+  } catch (error) {
+    console.error("Fout bij berekenen beschikbare toestellen:", error);
+    return res.status(500).json({
+      message: "Fout bij berekenen beschikbare toestellen",
     });
   }
 };

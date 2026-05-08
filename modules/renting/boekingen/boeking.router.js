@@ -9,6 +9,7 @@ import {
   boekingVerwijderen,
   updateBoeking,
   updatePeriode,
+  getAantalVrijeToestellen,
 } from "./boeking.service.js";
 import auth from "../../../middelware/auth.js";
 const router = express.Router();
@@ -71,12 +72,19 @@ router.get("/toestellen/vrij", auth("admin", "renting"), async (req, res) => {
     console.error(err);
     res.status(500).json({ message: "Fout bij ophalen vrije toestellen" });
   }
-});router.patch("/:id/toestellen/assign", auth("admin", "renting"), assignToestel);
+});
+router.patch("/:id/toestellen/assign", auth("admin", "renting"), assignToestel);
 
 router.delete("/:id", auth("admin", "renting"), boekingVerwijderen);
 
 router.patch("/:id", auth("admin", "renting"), updateBoeking);
 
 router.patch("/periode/update", updatePeriode);
+
+router.get(
+  "/toestellen/beschikbaar/aantal",
+  auth("admin", "renting"),
+  getAantalVrijeToestellen
+);
 
 export default router;
