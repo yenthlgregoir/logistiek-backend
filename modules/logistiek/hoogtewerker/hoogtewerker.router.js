@@ -5,7 +5,7 @@ import {generateHoogtewerkersPDF} from "../../helper/pdfService.js"
 
 const router = express.Router();
 
-router.get("/", auth("logistics", "admin"), async (req, res) => {
+router.get("/",  async (req, res) => {
   try {
     const search = req.query.search || ""; 
     const schaarliften = await HoogtewerkerService.getHoogtewerkers(search); 
