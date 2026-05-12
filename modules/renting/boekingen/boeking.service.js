@@ -309,13 +309,14 @@ export const getVrijeToestellen = async (req, res) => {
     }
 
     // 4️⃣ overlappende boekingen ophalen
-    const overlappendeBoekingen = await Boeking.find({
-      toestel: { $ne: null },
-      beginDatum: { $lt: eind },
-      eindDatum: { $gt: start },
-    })
-      .select("toestel")
-      .lean();
+   const overlappendeBoekingen = await Boeking.find({
+  toestel: { $ne: null },
+  status: { $ne: "Afgewerkt" }, // afgewerkte boekingen niet meetellen
+  beginDatum: { $lt: eind },
+  eindDatum: { $gt: start },
+})
+  .select("toestel")
+  .lean();
 
     // 5️⃣ bezette toestellen lijst
     const bezetteIds = overlappendeBoekingen.map((b) =>
@@ -369,12 +370,13 @@ export const assignToestel = async (req, res) => {
     }
 
     // 4️⃣ Check dat toestel vrij is in deze periode
-    const overlappendeBoekingen = await Boeking.find({
-      toestel: toestel._id,
-      _id: { $ne: boeking._id }, // andere boekingen
-      beginDatum: { $lt: boeking.eindDatum },
-      eindDatum: { $gt: boeking.beginDatum },
-    });
+   const overlappendeBoekingen = await Boeking.find({
+  toestel: toestel._id,
+  _id: { $ne: boeking._id }, // andere boekingen
+  status: { $nin: ["Afgewerkt"] },
+  beginDatum: { $lt: boeking.eindDatum },
+  eindDatum: { $gt: boeking.beginDatum },
+});
 
     if (overlappendeBoekingen.length > 0) {
       return res
